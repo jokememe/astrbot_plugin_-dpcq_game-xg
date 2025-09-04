@@ -63,7 +63,12 @@ EXPLORE_EVENTS = [
             lambda p, level: (
                 p.add_item(tech := random.choices(
                     ["黄阶功法", "玄阶功法", "地阶功法", "天阶功法"],
-                    weights=[45, 35, 1, 0.1]
+                    weights=[
+                        45 - ["初级", "中级", "高级"].index(level)*10,  # 黄阶概率随等级降低
+                        35 - ["初级", "中级", "高级"].index(level)*5,   # 玄阶概率随等级降低
+                        1 + ["初级", "中级", "高级"].index(level)*8,    # 地阶概率随等级提高
+                        0.1 + ["初级", "中级", "高级"].index(level)*2   # 天阶概率随等级提高
+                    ]
                 )[0]),
                 f"发现上古修炼秘籍【{tech}】"
             ) if random.random() < (0.1 + ["初级", "中级", "高级"].index(level)*0.05) else (None, "")
@@ -93,18 +98,18 @@ EXPLORE_EVENTS = [
                 p.add_item(tech := random.choices(
                     ["黄阶功法", "玄阶功法", "地阶功法", "天阶功法"],
                     weights=[
-                        60 if level != "高级" else 30,  # 黄阶
-                        30 if level != "高级" else 20,  # 玄阶
-                        0 if level != "高级" else 10,   # 地阶
-                        0 if level != "高级" else 0.1   # 天阶
+                        60 - ["初级", "中级", "高级"].index(level)*20,  # 黄阶概率随等级降低
+                        30 - ["初级", "中级", "高级"].index(level)*5,   # 玄阶概率随等级降低
+                        0 + ["初级", "中级", "高级"].index(level)*8,    # 地阶概率随等级提高
+                        0 + ["初级", "中级", "高级"].index(level)*2     # 天阶概率随等级提高
                     ]
                 )[0]),
                 f"顿悟石碑奥义，领悟【{tech}】"
-            ) if level == "高级" or random.random() < 0.6 else (None, ""),
+            ) if random.random() < (0.6 + ["初级", "中级", "高级"].index(level)*0.2) else (None, ""),
             lambda p, level: (
-                p.take_damage(int(p.health * 0.5)),
+                p.take_damage(int(p.health * (0.5 - ["初级", "中级", "高级"].index(level)*0.1))),
                 "参悟时走火入魔，气血逆冲！"
-            ) if random.random() < 0.3 else (None, "")
+            ) if random.random() < (0.3 - ["初级", "中级", "高级"].index(level)*0.1) else (None, "")
         ],
         "weight": 8
     },
@@ -336,11 +341,16 @@ REALMS = [
 
 # 功法加成系数与价值系统
 CULTIVATION_BOOST = {
-    "黄阶功法": {"boost": 1.1, "value": 500, "price": 750},
-    "玄阶功法": {"boost": 1.2, "value": 1500, "price": 2250},
-    "地阶功法": {"boost": 1.8, "value": 5000, "price": 7500},
-    "天阶功法": {"boost": 2.5, "value": 15000, "price": 22500}
+    "黄阶功法": {"boost": 0.1, "value": 500, "price": 750},
+    "玄阶功法": {"boost": 0.2, "value": 1500, "price": 2250},
+    "地阶功法": {"boost": 0.8, "value": 5000, "price": 7500},
+    "天阶功法": {"boost": 1.5, "value": 15000, "price": 22500}
 }
+
+OTHER_DATA = [
+    "魔兽内丹",
+    "空间戒指"
+]
 
 PILLS_DATA = [
     # ===== 修炼辅助类丹药 =====
@@ -665,9 +675,9 @@ PILLS_DATA = [
     {
         "id": "recover_3",
         "name": "3品复元丹",
-        "type": "recovery",
+        "type": "revival",
         "rank": "三品",
-        "effect": "recover",
+        "effect": "revive",
         "effect_value": 0.5,
         "effect_duration": 0,
         "price": 1500,
@@ -962,7 +972,7 @@ class Player:
         return base + (self.level - 1) * int(base * 0.1)
 
     def _calculate_max_health(self):
-        max_health = 100 + (self.realm_index**2)*10
+        max_health = 100 + (self.realm_index**2)*(10)
         logger.info(f"{self.user_name} 当前境界 {self.realm_index}，当前最大生命值 {max_health}")
         return max_health
 
@@ -973,7 +983,7 @@ class Player:
     @property
     def title(self):
         titles = ["无名小卒", "初露锋芒", "小有名气", "一方强者", "威震四方",
-                  "名动大陆", "绝世高手", "一代宗师", "巅峰强者", "超凡入圣", "万古至尊"]
+                  "名动大陆", "绝世高手", "一代宗师", "巅峰强者", "超凡入圣", "位面强者", "万古至尊","世界主宰"]
         return titles[self.realm_index]
 
     @property
@@ -1073,12 +1083,40 @@ class Player:
         return None
 
     def use_item(self, item_name: str):
+        """
+        使用一个物品。
+        支持：丹药系统、修炼增益类物品（CULTIVATION_BOOST）
+        """
+        # 1. 尝试使用丹药
         pill_result = PillSystem.use_pill(self, item_name)
         if pill_result[0] or pill_result[1] != "无效的丹药":
             return pill_result
-
-
-        return False, "无效的物品"
+        # 2. 检查是否为修炼增益类物品
+        if item_name not in CULTIVATION_BOOST:
+            return False, "无效的物品"
+        boost_data = CULTIVATION_BOOST[item_name]
+        boost_value = boost_data['boost']
+        # 3. 查找当前装备中同类增益物品（用于替换）
+        old_item = None
+        for item in self.zb:
+            if item in CULTIVATION_BOOST:
+                old_item = item
+                break
+        # 4. 如果已有同类增益物品，先移除其效果
+        if old_item:
+            old_boost = CULTIVATION_BOOST[old_item]['boost']
+            self.training_progress -= old_boost
+            # 从装备栏移除，并放回背包
+            self.zb.remove(old_item)
+            self.inventory.append(old_item)
+        # 5. 检查背包中是否有该物品
+        if item_name not in self.inventory:
+            return False, f"背包中没有 {item_name}，无法使用。"
+        # 6. 从背包移除，加入装备栏
+        self.inventory.remove(item_name)
+        self.zb.append(item_name)
+        self.training_progress += boost_value
+        return True, f"已使用 {item_name}，效果已生效。"
 
     def train(self):
         if not self.can_train():
@@ -1215,6 +1253,17 @@ class Player:
                 f"探索结果：\n" + "\n".join(results)
         )
 
+    def add_gold(self, amount: int) -> None:
+        """增加金币"""
+        self.gold += amount
+
+    def deduct_gold(self, amount: int) -> bool:
+        """扣除金币，如果不足返回False"""
+        if self.gold >= amount:
+            self.gold -= amount
+            return True
+        return False
+
     def to_dict(self) -> Dict[str, Any]:
         logger.info(f"Loading player {self.user_name}, realm_index={self.realm_index}")
         return {
@@ -1260,6 +1309,10 @@ class Player:
         player.temp_boosts = data.get("temp_boosts", {})
         return player
 
+
+
+
+
 class GameWorld:
     def __init__(self, group_id: str):
         self.group_id = group_id
@@ -1270,6 +1323,16 @@ class GameWorld:
         self.world_events = []
         self.last_event_update = 0
         self.duel_requests: Dict[str, str] = {}
+
+        self.auction_items = []
+        self.last_auction_refresh = 0
+        self.auction_bids = {}  # {index: {'bid': amount, 'bidder': user_id, 'bidder_name': name, 'bid_time': timestamp}}
+        self.auction_end_time = 0
+
+        self.lottery_pool = 10000  # 奖池累计
+        self.last_lottery_draw = 0  # 上次开奖时间
+        self.lottery_tickets = {}  # 玩家购买的彩票 {user_id: [ticket_numbers]}
+        self.lottery_history = []  # 历史开奖记录
 
     def generate_technique(self):
         """按概率生成功法"""
@@ -1348,6 +1411,27 @@ class GameWorld:
         # 5. 随机打乱顺序并限制数量
         random.shuffle(self.market_items)
 
+        default_pill = PillSystem.get_pill_by_name("2品回魂丹")
+        if default_pill:
+            for i in range(0,2):
+                self.market_items.append({
+                    "name": default_pill["name"],
+                    "effect": default_pill["description"],
+                    "price": default_pill["price"],
+                    "value": default_pill["value"],
+                    "type": default_pill["type"]
+                })
+
+        jz_random = random.randint(1, 10)
+        if jz_random >=8 :
+            self.market_items.append({
+                "name": "空间戒指",
+                "effect": "",
+                "price": random.randint(8000, 30000),
+                "value": "",
+                "type": ""
+            })
+
         # 6. 填充空缺位置（使用随机低品丹药）
         for i in range(0, 25 - len(self.market_items)):
             # 随机选择一种低品丹药类型来填充
@@ -1378,6 +1462,170 @@ class GameWorld:
 
         self.market_items = self.market_items[:20]  # 最多20个物品
         self.last_market_refresh = time.time()
+
+    def generate_auction_items(self):
+        # 从高级物品中随机选择
+        rare_items = []
+
+        # 添加高级功法
+        for name, data in CULTIVATION_BOOST.items():
+            if name in ["地阶功法", "天阶功法"]:
+                rare_items.append({
+                    "name": name,
+                    "description": f"修炼速度+{int(data['boost'] * 100)}%",
+                    "base_price": int(data['price'] * random.uniform(1.5, 2.5)),
+                    "rank": "高级",
+                    "type": "功法"
+                })
+
+        # 添加高级丹药（从PILLS_DATA中筛选6品及以上）
+        for pill in PILLS_DATA:
+            rank_str = pill.get('rank', '')
+            if '六品' in rank_str or '七品' in rank_str or '八品' in rank_str or '九品' in rank_str:
+                rare_items.append({
+                    "name": pill['name'],
+                    "description": pill['description'],
+                    "base_price": int(pill['price'] * random.uniform(1.2, 2.0)),
+                    "rank": pill['rank'],
+                    "type": pill['type']
+                })
+        # 随机选择3-5件商品
+        num_items = min(random.randint(3, 5), len(rare_items))
+        self.auction_items = random.sample(rare_items, num_items)
+
+    def process_auction_results(self):
+        """处理拍卖结果，在拍卖结束后调用"""
+        results = []
+        for index, item in enumerate(self.auction_items):
+            bid_info = self.auction_bids.get(index)
+            if bid_info:
+                # 找到最高出价者
+                winner_id = bid_info['bidder']
+                bid_amount = bid_info['bid']
+
+                if winner_id in self.players:
+                    winner = self.players[winner_id]
+                    if winner.gold >= bid_amount:
+                        winner.gold -= bid_amount
+                        if winner.add_item(item['name']):
+                            results.append(f"🎉 【{winner.user_name}】以 {bid_amount}金币 拍得 【{item['name']}】")
+                        else:
+                            results.append(f"❌ 【{winner.user_name}】拍得 【{item['name']}】但背包已满，交易取消")
+                            winner.gold += bid_amount  # 返还金币
+                    else:
+                        results.append(f"❌ 【{winner.user_name}】金币不足，【{item['name']}】流拍")
+                else:
+                    results.append(f"❌ 【{item['name']}】流拍（出价者已退出游戏）")
+            else:
+                results.append(f"❌ 【{item['name']}】无人出价，流拍")
+        # 清空拍卖物品
+        self.auction_items = []
+        return results
+
+    def generate_lottery_numbers(self) -> List[int]:
+        """生成5个1-35的主号码和2个1-12的特别号码"""
+        main_numbers = sorted(random.sample(range(1, 36), 5))
+        special_numbers = sorted(random.sample(range(1, 13), 2))
+        return main_numbers + special_numbers
+
+    def buy_lottery_ticket(self, user_id: str, numbers: List[int] = None) -> Tuple[bool, str]:
+        """购买彩票"""
+        if numbers and len(numbers) != 7:
+            return False, "请输入7个数字(前5个1-35，后2个1-12)"
+
+        if not numbers:
+            numbers = self.generate_lottery_numbers()
+        else:
+            # 验证数字范围
+            for i in range(5):
+                if not 1 <= numbers[i] <= 35:
+                    return False, "前5个数字必须在1-35范围内"
+            for i in range(5, 7):
+                if not 1 <= numbers[i] <= 12:
+                    return False, "后2个数字必须在1-12范围内"
+
+        if user_id not in self.lottery_tickets:
+            self.lottery_tickets[user_id] = []
+
+        self.lottery_tickets[user_id].append(numbers)
+        self.lottery_pool += 50  # 每注50金币加入奖池
+        return True, f"购买成功！你的号码是：{numbers[:5]} + {numbers[5:]}"
+
+    def draw_lottery(self) -> Dict[str, Any]:
+        """开奖并计算中奖结果"""
+        winning_numbers = self.generate_lottery_numbers()
+        winners = {
+            "一等奖": [],  # 5+2
+            "二等奖": [],  # 5+1
+            "三等奖": [],  # 5+0
+            "四等奖": [],  # 4+2
+            "五等奖": [],  # 4+1
+            "六等奖": [],  # 3+2
+            "七等奖": [],  # 4+0
+            "八等奖": [],  # 3+1 or 2+2
+            "九等奖": []  # 3+0 or 1+2 or 0+2
+        }
+
+        prize_distribution = {
+            "一等奖": 0.4,  # 40%奖池
+            "二等奖": 0.2,  # 20%奖池
+            "三等奖": 0.1,  # 10%奖池
+            "四等奖": 0.05,  # 5%奖池
+            "五等奖": 0.05,  # 5%奖池
+            "六等奖": 0.05,  # 5%奖池
+            "七等奖": 0.05,  # 5%奖池
+            "八等奖": 0.05,  # 5%奖池
+            "九等奖": 0.05  # 5%奖池
+        }
+
+        # 计算每个奖项的奖金
+        prize_amounts = {
+            level: int(self.lottery_pool * percentage)
+            for level, percentage in prize_distribution.items()
+        }
+
+        # 检查所有彩票
+        for user_id, tickets in self.lottery_tickets.items():
+            for ticket in tickets:
+                main_match = len(set(ticket[:5]) & set(winning_numbers[:5]))
+                special_match = len(set(ticket[5:]) & set(winning_numbers[5:]))
+
+                if main_match == 5 and special_match == 2:
+                    winners["一等奖"].append((user_id, ticket))
+                elif main_match == 5 and special_match == 1:
+                    winners["二等奖"].append((user_id, ticket))
+                elif main_match == 5:
+                    winners["三等奖"].append((user_id, ticket))
+                elif main_match == 4 and special_match == 2:
+                    winners["四等奖"].append((user_id, ticket))
+                elif main_match == 4 and special_match == 1:
+                    winners["五等奖"].append((user_id, ticket))
+                elif main_match == 3 and special_match == 2:
+                    winners["六等奖"].append((user_id, ticket))
+                elif main_match == 4:
+                    winners["七等奖"].append((user_id, ticket))
+                elif (main_match == 3 and special_match == 1) or (main_match == 2 and special_match == 2):
+                    winners["八等奖"].append((user_id, ticket))
+                elif main_match == 3 or (main_match == 1 and special_match == 2) or (
+                        main_match == 0 and special_match == 2):
+                    winners["九等奖"].append((user_id, ticket))
+
+        # 记录开奖结果
+        self.lottery_history.append({
+            "draw_time": time.time(),
+            "numbers": winning_numbers,
+            "winners": {k: len(v) for k, v in winners.items()}
+        })
+
+        # 重置奖池和彩票
+        self.lottery_pool = self.lottery_pool - sum(prize_amounts.values()) + 10000
+        self.lottery_tickets = {}
+        self.last_lottery_draw = time.time()
+        return {
+            "numbers": winning_numbers,
+            "winners": winners,
+            "prizes": prize_amounts
+        }
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -1676,7 +1924,7 @@ class DouPoCangQiongFinal(Star):
             f"【金币】{player.gold}\n"
             f"【生命】{player.health}/{player.max_health} {'(濒死)' if player.is_dying else ''}\n"
             f"【战力】{player.power}\n"
-            f"【装备】{player.zb}"
+            f"【装备】{player.zb}\n"
             f"【物品】{', '.join(player.inventory) if player.inventory else '无'}\n"
         )
 
@@ -1719,7 +1967,7 @@ class DouPoCangQiongFinal(Star):
             f"【金币】{player.gold}\n"
             f"【生命】{player.health}/{player.max_health} {'(濒死)' if player.is_dying else ''}\n"
             f"【战力】{player.power}\n"
-            f"【装备】{player.zb}"
+            f"【装备】{player.zb}\n"
             f"【物品】{', '.join(player.inventory) if player.inventory else '无'}\n"
         )
 
@@ -1788,6 +2036,31 @@ class DouPoCangQiongFinal(Star):
                 f"{msg}\n"
                 f"当前境界：{player.realm} {player.level}星\n"
                 f"斗气进度：{player.current_qi}/{player.required_qi}"
+            )
+        else:
+            yield event.plain_result(msg)
+
+
+    @filter.command("突破_s")
+    async def breakthrough_s(self, event: AstrMessageEvent):
+        user_id = event.get_sender_id()
+        if user_id not in self.player_world_map:
+            yield event.plain_result("你还没有加入任何游戏，请先在群聊中使用 /dp_join 加入游戏！")
+            return
+        args = event.message_str.strip().split()
+        if len(args) < 2:
+            yield event.plain_result("请指定炼丹品阶，如炼丹_s 五品！")
+            return
+        group_id = self.player_world_map[user_id]
+        world = self._get_world(group_id)
+        player = world.players[user_id]
+        success, msg = player.breakthrough()
+
+        if success:
+            yield event.plain_result(
+                f"{msg}\n"
+                f"新境界：{player.realm} 1星\n"
+                f"所需斗气：0/{player.required_qi}"
             )
         else:
             yield event.plain_result(msg)
@@ -1889,6 +2162,54 @@ class DouPoCangQiongFinal(Star):
 
         yield event.plain_result(msg)
 
+    @filter.command("炼丹_s", private=True)
+    async def private_have_dy(self, event: AstrMessageEvent):
+        user_id = event.get_sender_id()
+        if user_id not in self.player_world_map:
+            yield event.plain_result("你还没有加入任何游戏，请先在群聊中使用 /dp_join 加入游戏！")
+            return
+        args = event.message_str.strip().split()
+        if len(args) < 2:
+            yield event.plain_result("请指定炼丹品阶，如炼丹_s 五品！")
+            return
+        group_id = self.player_world_map[user_id]
+        world = self._get_world(group_id)
+        player = world.players[user_id]
+        item_name = " ".join(args[1:])
+        if int(self.extract_simple_chinese_digits(item_name)) > player.realm_index+1:
+            yield event.plain_result("你的境界不能炼制该品级丹药！")
+            return
+        if "魔兽内丹" not in player.inventory:
+            yield event.plain_result("你没有魔兽内丹！")
+            return
+        dy_list = PillSystem.get_pills_by_rank(item_name)
+        if dy_list:  # 确保该品阶有丹药
+            item = random.choice(dy_list)
+            base_gl = 0.9
+            base_gl = base_gl - int(self.extract_simple_chinese_digits(item_name))*0.1*0.8
+            if random.random() < base_gl:
+                player.inventory.remove("魔兽内丹")
+                player.inventory.append(item.name)
+                player.gold = player.gold - int(self.extract_simple_chinese_digits(item_name))**2*80
+                yield event.plain_result(f"你成功炼制了{item.name}！")
+            else:
+                yield event.plain_result(f"你炼制失败了！")
+                return
+
+
+    def extract_simple_chinese_digits(self,text):
+        """提取简单的中文数字并转换"""
+        digit_map = {'零': '0', '一': '1', '二': '2', '三': '3', '四': '4',
+                     '五': '5', '六': '6', '七': '7', '八': '8', '九': '9'}
+
+        result = []
+        for char in text:
+            if char in digit_map:
+                result.append(digit_map[char])
+            elif char.isdigit():  # 如果已经是阿拉伯数字
+                result.append(char)
+        return ''.join(result)
+
     @filter.command("使用_s",private=True)
     async def private_use_item(self, event: AstrMessageEvent):
         user_id = event.get_sender_id()
@@ -1934,11 +2255,11 @@ class DouPoCangQiongFinal(Star):
             return
 
         # 使用品级最低的复活丹药（按品阶排序）
-        used_pill = min(revive_pills, key=lambda x: int(x["rank"][0]))
+        used_pill = min(revive_pills, key=lambda x: int(self.extract_simple_chinese_digits(x["rank"])))
         player.inventory.remove(used_pill["name"])
 
         # 根据丹药品级决定恢复效果（使用丹药的effect_value）
-        pill_grade = int(used_pill["rank"][0])
+        pill_grade = int(self.extract_simple_chinese_digits(used_pill["rank"][0]))
 
         # 使用丹药的效果值来决定恢复效果
         if used_pill["effect"] == "revive":
@@ -1998,8 +2319,12 @@ class DouPoCangQiongFinal(Star):
 
         player = world.players[user_id]
 
-        # 查找所有复活类丹药（使用新的丹药系统）
         revive_pills = []
+        if player.realm_index == 12:
+            revive_pills.append(PillSystem.get_pill_by_name("2品回魂丹"))
+
+        # 查找所有复活类丹药（使用新的丹药系统）
+
         for item_name in player.inventory:
             pill = PillSystem.get_pill_by_name(item_name)
             if pill and pill["type"] == "revival":
@@ -2024,7 +2349,7 @@ class DouPoCangQiongFinal(Star):
             )
             return
 
-        target = next((p for p in world.players.values() if p.user_name == target_name), None)
+        target = next((p for p in world.players.values() if p.user_name == target_name), None) or next((p for p in world.players.values() if p.user_id == target_name), None)
         if not target:
             yield event.plain_result("找不到该玩家！")
             return
@@ -2033,7 +2358,7 @@ class DouPoCangQiongFinal(Star):
             return
 
         # 使用品级最低的复活丹药
-        used_pill = min(revive_pills, key=lambda x: int(x["rank"][0]))
+        used_pill = min(revive_pills, key=lambda x: int(self.extract_simple_chinese_digits(x["rank"])))
         player.inventory.remove(used_pill["name"])
 
         # === 新增金币转移逻辑 ===
@@ -2042,7 +2367,7 @@ class DouPoCangQiongFinal(Star):
         target.gold = max(0, target.gold - gold_transfer)
 
         # 根据丹药品级和效果类型决定恢复效果
-        pill_grade = int(used_pill["rank"][0])
+        pill_grade = int(self.extract_simple_chinese_digits(used_pill["rank"][0]))
 
         # 使用丹药的效果值来决定恢复效果
         if used_pill["effect"] == "revive":
@@ -2170,6 +2495,126 @@ class DouPoCangQiongFinal(Star):
 
         yield event.plain_result("无效的市场命令！")
 
+    @filter.command("拍卖会")
+    async def auction(self, event: AstrMessageEvent):
+        world = self._get_world(event.get_group_id())
+        user_id = event.get_sender_id()
+        args = event.message_str.strip().split()
+
+        if user_id not in world.players:
+            yield event.plain_result("你还没有加入游戏，请输入 /dp_join 加入游戏！")
+            return
+
+        # 检查是否需要刷新拍卖会物品
+        current_time = time.time()
+        if current_time - world.last_auction_refresh > 3600:  # 1小时刷新一次
+            world.generate_auction_items()
+            world.last_auction_refresh = current_time
+            world.auction_bids = {}  # 清空竞拍记录
+            world.auction_end_time = current_time + 3600  # 拍卖持续1小时
+
+        player = world.players[user_id]
+
+        if len(args) == 1:
+            if not world.auction_items:
+                yield event.plain_result("拍卖会暂时没有商品，请稍后再来！")
+                return
+
+            # 计算剩余时间
+            remaining_time = int(world.auction_end_time - current_time)
+            hours = remaining_time // 3600
+            minutes = (remaining_time % 3600) // 60
+            seconds = remaining_time % 60
+
+            # 显示拍卖会商品列表
+            auction_list = f"=== 拍卖会 === (剩余时间: {hours:02d}:{minutes:02d}:{seconds:02d})\n"
+            for i, item in enumerate(world.auction_items):
+                current_bid_info = world.auction_bids.get(i, {})
+                current_bid = current_bid_info.get('bid', item['base_price'])
+                bidder_name = current_bid_info.get('bidder_name', '无人出价')
+
+                auction_list += f"{i + 1}. 【{item['name']}】{item['description']}\n"
+                auction_list += f"   当前最高价：{current_bid}金币，出价者：{bidder_name}\n"
+                auction_list += f"   起拍价：{item['base_price']}金币\n"
+
+            auction_list += "\n使用 /拍卖会 bid 序号 价格 参与竞拍"
+            auction_list += "\n使用 /拍卖会 info 序号 查看物品详细信息"
+            auction_list += "\n拍卖会每小时刷新一次，结束后价高者得"
+
+            yield event.plain_result(auction_list)
+            return
+
+        if args[1] == "bid" and len(args) > 3:
+            try:
+                index = int(args[2]) - 1
+                bid_amount = int(args[3])
+
+                if current_time >= world.auction_end_time:
+                    yield event.plain_result("拍卖会已结束，无法出价！")
+                    return
+
+                if 0 <= index < len(world.auction_items):
+                    item = world.auction_items[index]
+                    current_bid = world.auction_bids.get(index, {}).get('bid', item['base_price'])
+
+                    if bid_amount <= current_bid:
+                        yield event.plain_result(f"你的出价必须高于当前最高价 {current_bid} 金币！")
+                        return
+
+                    if bid_amount < item['base_price']:
+                        yield event.plain_result(f"出价不能低于起拍价 {item['base_price']} 金币！")
+                        return
+
+                    if player.gold < bid_amount:
+                        yield event.plain_result("你的金币不足！")
+                        return
+
+                    # 记录竞拍
+                    world.auction_bids[index] = {
+                        'bid': bid_amount,
+                        'bidder': user_id,
+                        'bidder_name': player.user_name,
+                        'bid_time': current_time
+                    }
+
+                    # 通知所有玩家有新出价
+                    yield event.plain_result(
+                        f"🎉 【{player.user_name}】对 【{item['name']}】 出价 {bid_amount} 金币！\n"
+                        f"📈 当前最高价：{bid_amount}金币\n"
+                        f"⏰ 拍卖剩余时间：{int((world.auction_end_time - current_time) // 60)}分钟"
+                    )
+                else:
+                    yield event.plain_result("无效的商品序号！")
+            except ValueError:
+                yield event.plain_result("请输入正确的商品序号和价格！")
+            return
+
+        if args[1] == "info" and len(args) > 2:
+            try:
+                index = int(args[2]) - 1
+                if 0 <= index < len(world.auction_items):
+                    item = world.auction_items[index]
+                    info_text = f"=== {item['name']} 详细信息 ===\n"
+                    info_text += f"描述：{item['description']}\n"
+                    info_text += f"品阶：{item.get('rank', '未知')}\n"
+                    info_text += f"类型：{item.get('type', '未知')}\n"
+                    info_text += f"起拍价：{item['base_price']}金币\n"
+
+                    current_bid_info = world.auction_bids.get(index, {})
+                    if current_bid_info:
+                        info_text += f"当前最高价：{current_bid_info.get('bid')}金币\n"
+                        info_text += f"出价者：{current_bid_info.get('bidder_name')}\n"
+                    else:
+                        info_text += "当前最高价：无人出价\n"
+
+                    yield event.plain_result(info_text)
+                else:
+                    yield event.plain_result("无效的商品序号！")
+            except ValueError:
+                yield event.plain_result("请输入正确的商品序号！")
+            return
+        yield event.plain_result("无效的拍卖会命令！可用命令：/拍卖会, /拍卖会 bid 序号 价格, /拍卖会 info 序号")
+
     @filter.command("出售")
     async def sell(self, event: AstrMessageEvent):
         world = self._get_world(event.get_group_id())
@@ -2197,6 +2642,7 @@ class DouPoCangQiongFinal(Star):
             yield event.plain_result("你没有这个物品！")
         return
 
+
     @filter.command("出售_s")
     async def private_sell(self, event: AstrMessageEvent):
         user_id = event.get_sender_id()
@@ -2223,6 +2669,10 @@ class DouPoCangQiongFinal(Star):
         else:
             yield event.plain_result("你没有这个物品！")
         return
+
+
+
+
 
 
     @filter.command("dp_world")
@@ -2289,7 +2739,8 @@ class DouPoCangQiongFinal(Star):
             return
 
         target_name = args[1].strip("@")
-        target = next((p for p in world.players.values() if p.user_name == target_name), None)
+        target = next((p for p in world.players.values() if p.user_name == target_name), None) or next(
+            (p for p in world.players.values() if p.user_id == target_name), None)
 
         if not target:
             yield event.plain_result("找不到该玩家！")
@@ -2544,53 +2995,51 @@ class DouPoCangQiongFinal(Star):
     @filter.command("dp_help", private=True)
     async def show_help(self, event: AstrMessageEvent):
         help_text = """
-        === 斗破苍穹游戏帮助 ===
-        【基础命令】
-        /dp_join - 加入游戏
-        /状态 - 查看状态
-        /状态_s - 私聊查看状态
+    === 斗破苍穹最终版帮助 ===
 
-        【修炼系统】
-        /修炼 - 修炼增加斗气
-        /修炼_s - 私聊修炼
-        /突破 - 突破境界
+    📋 命令速查表
+    ┌───────────────┬───────────────────────────┬───────────────┬──────────────┐
+    │     命令      │           说明            │    冷却/条件   │    示例       │
+    ├───────────────┼───────────────────────────┼───────────────┼──────────────┤
+    │  /dp_join     │ 加入游戏                  │ 需在群聊使用   │              │
+    │  /状态        │ 查看状态                  │               │              │
+    │  /状态_s      │ 私聊查看状态              │ 含群聊信息     │              │
+    │  /修炼        │ 修炼增加斗气              │ 5分钟冷却     │              │
+    │  /修炼_s      │ 私聊修炼                  │ 冷却共享       │              │
+    │  /突破        │ 突破境界                  │ 需满斗气       │              │
+    │  /探索 初级   │ 低风险探索                │ 10分钟冷却    │              │
+    │  /探索 中级   │ 中等风险探索              │ 30分钟冷却    │              │
+    │  /探索 高级   │ 高风险探索                │ 60分钟冷却    │              │
+    │  /探索_s      │ 私聊探索                  │ 冷却共享       │              │
+    │  /对战 @玩家  │ 发起挑战                  │ 1分钟冷却      │ /对战 @张三  │
+    │  /接受挑战    │ 接受对战                  │ 需有请求       │              │
+    │  /救助 @玩家  │ 救助濒死玩家              │ 消耗复活丹     │ /救助 @李四  │
+    │  /炼丹_s 品阶 │ 炼制丹药                  │ 需魔兽内丹     │ /炼丹_s 五品 │
+    │  /使用 物品名 │ 使用物品                  │               │ /使用 回魂丹 │
+    │  /商店        │ 查看市场                  │ 30分钟刷新     │              │
+    │  /商店 buy N  │ 购买物品                  │               │ /商店 buy 1  │
+    │  /出售 物品名 │ 出售物品                  │ 价格浮动       │ /出售 内丹   │
+    │  /出售_s      │ 私聊出售                  │               │              │
+    │  /dp_world    │ 世界动态                  │ 每小时刷新     │              │
+    │  /拍卖会      │ 参与拍卖                  │ 每小时刷新     │              │
+    │  /斗破彩      │ 彩票系统                  │ 每小时开奖     │              │
+    │  /复活        │ 使用复活丹                │ 濒死状态       │              │
+    │  /dp_start    │ 开启游戏(管理)            │ 管理员权限     │              │
+    │  /dp_save     │ 手动保存                  │               │              │
+    │  /dp_load     │ 加载存档                  │               │              │
+    └───────────────┴───────────────────────────┴───────────────┴──────────────┘
 
-        【探索系统】
-        /探索 [初级/中级/高级] - 探索世界
-        /探索_s [初级/中级/高级] - 私聊探索
+    💡 系统说明：
+    • 炼丹：成功率=90%-品阶×8%，只能炼制≤自身境界+1品级
+    • 战斗：境界差≥2级时，高阶修士伤害大幅提升
+    • 复活：低品丹恢复30%，中品70%，高品100%+特效
+    • 境界：斗之气→斗者→斗师→大斗师→斗灵→斗王→斗皇→斗宗→斗尊→斗圣→斗帝
 
-        【战斗系统】
-        /对战 @玩家 - 挑战其他玩家
-        /接受挑战 - 接受对战请求
-
-        【物品系统】
-        /使用 物品名 - 使用物品
-        /商店 - 查看交易市场
-        /商店 buy 序号 - 购买物品
-        /商店 sell 物品名 - 出售物品
-        /出售 -出售物品
-        /出售_s -私聊出售物品
-
-        【世界系统】
-        /dp_world - 查看世界动态
-        /救助 - 救助濒死玩家
-        /复活 - 使用回魂丹复活
-
-        【管理命令】
-        /dp_start - 管理员开启游戏
-        /dp_save - 手动保存游戏数据
-        /dp_load - 加载游戏数据
-
-        【帮助命令】
-        /dp_help - 显示本帮助信息
-
-        === 玩法说明 ===
-        1. 通过修炼积累斗气提升等级
-        2. 探索世界获取资源和丹药
-        3. 使用丹药增强修炼效果
-        4. 与其他玩家对战提升实力
-        5. 濒死状态需要回魂丹复活
-        """
+    ⚠️ 注意：
+    1. 私聊命令需先在群聊绑定角色
+    2. 濒死状态需及时复活
+    3. 拍卖会和彩票每小时刷新
+    """
         yield event.plain_result(help_text)
 
     @filter.command("dp_clear", admin=True)
@@ -2641,3 +3090,145 @@ class DouPoCangQiongFinal(Star):
             f"已删除 {count} 个无效数据文件\n"
             f"剩余有效文件: {len(saved_files) - count} 个"
         )
+
+    @filter.command("斗破彩")
+    async def lottery(self, event: AstrMessageEvent):
+        """斗气彩彩票系统"""
+        world = self._get_world(event.get_group_id())
+        user_id = event.get_sender_id()
+        args = event.message_str.strip().split()
+
+        if user_id not in world.players:
+            yield event.plain_result("你还没有加入游戏，请输入 /dp_join 加入游戏！")
+            return
+        player = world.players[user_id]
+
+        current_time = time.time()
+        if current_time - world.last_lottery_draw >= 3600:
+            if world.lottery_tickets:
+                result = world.draw_lottery()
+                # 可以先发送开奖结果
+                await self._send_lottery_result(event, result)
+            # 重置开奖时间，即使没人买票也重置
+            world.last_lottery_draw = current_time
+
+        if len(args) == 1:
+            # 显示彩票信息
+            remaining_time = max(0, 3600 - int((time.time() - world.last_lottery_draw)))
+            hours = int(remaining_time // 3600)
+            minutes = int((remaining_time % 3600) // 60)
+
+            info = (
+                "=== 斗气彩彩票 ===\n"
+                f"当前奖池：{world.lottery_pool}金币\n"
+                f"下次开奖：{hours}小时{minutes}分钟后\n"
+                "玩法说明：\n"
+                "1. 从1-35选5个主号码，1-12选2个特别号码\n"
+                "2. 每注100金币，奖金来自奖池\n"
+                "3. 每一小时开奖一次\n"
+                "4. 中奖规则：\n"
+                "   一等奖：5+2（40%奖池）\n"
+                "   二等奖：5+1（20%奖池）\n"
+                "   三等奖：5+0（10%奖池）\n"
+                "   四等奖：4+2（5%奖池）\n"
+                "   五等奖：4+1（5%奖池）\n"
+                "   六等奖：3+2（5%奖池）\n"
+                "   七等奖：4+0（5%奖池）\n"
+                "   八等奖：3+1或2+2（5%奖池）\n"
+                "   九等奖：3+0或1+2或0+2（5%奖池）\n"
+                "\n使用命令：\n"
+                "/斗破彩 buy - 随机购买一注\n"
+                "/斗破彩 buy 1 2 3 4 5 6 7 - 自选号码\n"
+                "/斗破彩 my - 查看我的彩票\n"
+                "/斗破彩 history - 查看历史开奖\n"
+            )
+            yield event.plain_result(info)
+            return
+
+        if args[1] == "buy":
+            if not player.deduct_gold(100):
+                yield event.plain_result("金币不足，每注需要100金币！")
+                return
+
+            if len(args) > 2:
+                try:
+                    numbers = [int(num) for num in args[2:9]]
+                    success, msg = world.buy_lottery_ticket(user_id, numbers)
+                except ValueError:
+                    success, msg = False, "请输入有效的数字！"
+            else:
+                success, msg = world.buy_lottery_ticket(user_id)
+
+            if success:
+                player.deduct_gold(100)
+                self._save_world(event.get_group_id())
+            yield event.plain_result(msg)
+            return
+
+        if args[1] == "my":
+            if user_id not in world.lottery_tickets or not world.lottery_tickets[user_id]:
+                yield event.plain_result("你还没有购买任何彩票！")
+                return
+
+            tickets = [
+                f"{i + 1}. 主:{ticket[:5]} 特:{ticket[5:]}"
+                for i, ticket in enumerate(world.lottery_tickets[user_id])
+            ]
+            yield event.plain_result(
+                f"=== 你的彩票 ===\n" +
+                "\n".join(tickets) +
+                f"\n\n共{len(tickets)}注，总价值{len(tickets) * 50}金币"
+            )
+            return
+
+        if args[1] == "history":
+            if not world.lottery_history:
+                yield event.plain_result("暂无开奖历史！")
+                return
+
+            history = []
+            for i, record in enumerate(world.lottery_history[-5:]):  # 显示最近5期
+                draw_time = time.strftime("%m-%d %H:%M", time.localtime(record["draw_time"]))
+                numbers = f"主:{record['numbers'][:5]} 特:{record['numbers'][5:]}"
+                winners = " ".join([f"{k}:{v}" for k, v in record["winners"].items() if v > 0])
+                history.append(f"{i + 1}. {draw_time} {numbers} 中奖: {winners}")
+
+            yield event.plain_result(
+                "=== 最近5期开奖 ===\n" +
+                "\n".join(history)
+            )
+            return
+
+        yield event.plain_result("无效的命令，请输入 /斗气彩 查看帮助")
+
+    async def _send_lottery_result(self, event: AstrMessageEvent, result: dict):
+        """发送开奖结果通知"""
+        winning_numbers = f"主:{result['numbers'][:5]} 特:{result['numbers'][5:]}"
+        winner_info = []
+        for level in ["一等奖", "二等奖", "三等奖", "四等奖", "五等奖",
+                      "六等奖", "七等奖", "八等奖", "九等奖"]:
+            if result["winners"][level]:
+                winners = []
+                for user_id, ticket in result["winners"][level]:
+                    player = self.worlds[event.get_group_id()].players.get(user_id)
+                    if player:
+                        prize = result["prizes"][level] // len(result["winners"][level])
+                        player.add_gold(prize)
+                        winners.append(f"{player.user_name}(+{prize}金币)")
+                if winners:
+                    winner_info.append(f"{level}: {', '.join(winners)}")
+        if not winner_info:
+            winner_info.append("本期无人中奖")
+        message = (
+                "=== 斗气彩开奖结果 ===\n"
+                f"中奖号码: {winning_numbers}\n"
+                f"奖池总额: {sum(result['prizes'].values())}金币\n"
+                "\n中奖情况:\n" +
+                "\n".join(winner_info)
+        )
+        yield event.plain_result(message)
+
+
+
+
+
