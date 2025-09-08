@@ -1,3 +1,4 @@
+import asyncio
 import json
 import math
 import os
@@ -35,6 +36,126 @@ EXPLORE_LEVELS = {
         "max_realm": 10  # 斗帝
     }
 }
+
+DUNGEON_LEVELS = {
+    # 普通副本
+    "初级": {
+        "min_realm": 0,  # 斗之气
+        "max_realm": 13,  # 大斗师
+        "boss_power": 1000,
+        "reward_factor": 1.0,
+        "drop_items": [
+            {"name": "1品聚气丹", "probability": 0.6, "quantity": (1, 3)},
+            {"name": "2品聚气散", "probability": 0.4, "quantity": (1, 2)},
+            {"name": "3品破障丹", "probability": 0.3, "quantity": 1},
+            {"name": "1品凝神丹", "probability": 0.5, "quantity": (1, 2)},
+            {"name": "3品玄灵丹", "probability": 0.2, "quantity": 1},
+            {"name": "1品回复丹", "probability": 0.7, "quantity": (1, 3)},
+            {"name": "1品疗伤丹", "probability": 0.7, "quantity": (1, 3)}
+        ],
+        "gold_range": (100, 300),
+        "description": "新手修炼者的试炼场，适合初入修炼之路的修士"
+    },
+    "中级": {
+        "min_realm": 3,  # 大斗师
+        "max_realm": 13,  # 斗皇
+        "boss_power": 200000,
+        "reward_factor": 1.5,
+        "drop_items": [
+            {"name": "3品破障丹", "probability": 0.5, "quantity": (1, 2)},
+            {"name": "3品玄灵丹", "probability": 0.4, "quantity": (1, 2)},
+            {"name": "3品龙力丹", "probability": 0.3, "quantity": 1},
+            {"name": "玄阶功法", "probability": 0.2, "quantity": 1}
+        ],
+        "gold_range": (300, 800),
+        "description": "中阶修士的晋升之地，危险与机遇并存"
+    },
+    "高级": {
+        "min_realm": 6,  # 斗皇
+        "max_realm": 13,  # 斗圣
+        "boss_power": 5000000,
+        "reward_factor": 2.0,
+        "drop_items": [
+            {"name": "6品造化丹", "probability": 0.4, "quantity": 1},
+            {"name": "6品玄灵丹", "probability": 0.4, "quantity": 1},
+            {"name": "6品风行丹", "probability": 0.3, "quantity": 1},
+            {"name": "地阶功法", "probability": 0.3, "quantity": 1},
+            # 新增严格匹配的8/9品丹药
+            {"name": "8品混沌丹", "probability": 0.1, "quantity": 1},
+            {"name": "9品洗髓丹", "probability": 0.1, "quantity": 1},
+            {"name": "天阶功法", "probability": 0.1, "quantity": 1}
+        ],
+        "gold_range": (800, 2000),
+        "description": "强者云集的危险区域，只有真正的强者才能生存"
+    },
+    "顶级": {
+        "min_realm": 9,  # 斗圣
+        "max_realm": 13,  # 主宰
+        "boss_power": 100000000,
+        "reward_factor": 3.0,
+        "drop_items": [
+            {"name": "9品至尊丹", "probability": 0.4, "quantity": 1},
+            {"name": "9品涅槃丹", "probability": 0.3, "quantity": 1},
+            {"name": "9品洗髓丹", "probability": 0.5, "quantity": 1},
+            {"name": "天阶功法", "probability": 0.4, "quantity": 1},
+            # 新增严格匹配的8品丹药
+            {"name": "8品不朽丹", "probability": 0.3, "quantity": 1},
+            {"name": "9品永生丹", "probability": 0.3, "quantity": 1}
+        ],
+        "gold_range": (2000, 5000),
+        "description": "巅峰强者的终极试炼，距离主宰仅一步之遥"
+    },
+
+    # 混沌级副本
+    "混沌初境": {
+        "min_realm": 12,  # 主宰
+        "max_realm": 13,  # 混沌主宰
+        "boss_power": 500000000,
+        "reward_factor": 4.0,
+        "drop_items": [
+            {"name": "混沌结晶", "probability": 0.5, "quantity": (1, 2)},
+            {"name": "7品阴阳丹", "probability": 0.8, "quantity": 1},
+            {"name": "8品混沌丹", "probability": 0.8, "quantity": 1},
+            {"name": "天阶功法", "probability": 0.6, "quantity": 1},
+            {"name": "9品轮回丹", "probability": 0.6, "quantity": 1}
+        ],
+        "gold_range": (50000, 80000),
+        "description": "混沌初开之地，空间裂缝中诞生的初级混沌生物"
+    },
+    "混沌秘境": {
+        "min_realm": 12,
+        "max_realm": 13,
+        "boss_power": 5000000000,
+        "reward_factor": 5.0,
+        "drop_items": [
+            {"name": "混沌结晶", "probability": 0.8, "quantity": (2, 3)},
+            {"name": "混沌核心", "probability": 0.1, "quantity": 1},
+            {"name": "8品不朽丹", "probability": 0.5, "quantity": 1},
+            {"name": "9品轮回丹", "probability": 0.5, "quantity": 1},
+            {"name": "天阶功法", "probability": 0.9, "quantity": 1},
+            {"name": "9品永生丹", "probability": 0.2, "quantity": 1}
+        ],
+        "gold_range": (80000, 120000),
+        "description": "混沌能量汇聚的中级区域，时空扭曲严重"
+    },
+    "混沌核心": {
+        "min_realm": 12,
+        "max_realm": 13,
+        "boss_power": 10000000000,
+        "reward_factor": 6.0,
+        "drop_items": [
+            {"name": "混沌结晶", "probability": 0.99, "quantity": (3, 5)},
+            {"name": "混沌核心", "probability": 0.4, "quantity": (1, 2)},
+            {"name": "9品永生丹", "probability": 0.6, "quantity": 1},
+            {"name": "天阶功法", "probability": 0.9, "quantity": 1},
+            {"name": "9品洗髓丹", "probability": 0.5, "quantity": 1},
+            {"name": "8品混沌丹", "probability": 0.7, "quantity": 1}
+        ],
+        "gold_range": (120000, 200000),
+        "description": "混沌本源所在，只有最强者才能涉足的终极区域"
+    }
+}
+
 
 EXPLORE_EVENTS = [
     {
@@ -331,7 +452,8 @@ REALMS = [
     {"name": "斗圣", "levels": 10, "breakthrough_chance": 0.1, "base_qi": 30000, "train_gain": (800, 1600)},
     {"name": "斗帝", "levels": 10, "breakthrough_chance": 0.05, "base_qi": 100000, "train_gain": (1000, 2000)},
     {"name": "天至尊", "levels": 3, "breakthrough_chance": 0.01, "base_qi": 1000000, "train_gain": (10000, 20000)},
-    {"name": "主宰", "levels": 1000000000000, "breakthrough_chance": 0.05, "base_qi": 100000000, "train_gain": (10000, 20000)}
+    {"name": "主宰", "levels": 100, "breakthrough_chance": 0.05, "base_qi": 100000000, "train_gain": (10000, 20000)},
+    {"name": "混沌主宰", "levels": float('inf'), "breakthrough_chance": 0.01, "base_qi": 1000000000, "train_gain": (50000, 100000)}
 ]
 
 # 功法加成系数与价值系统
@@ -344,7 +466,8 @@ CULTIVATION_BOOST = {
 
 OTHER_DATA = [
     "魔兽内丹",
-    "空间戒指"
+    "空间戒指",
+    "混沌结晶"
 ]
 
 PILLS_DATA = [
@@ -960,6 +1083,8 @@ class Player:
         self.temp_boosts = {}  # 临时加成 {"attr": (value, expire_time)}
         self.lan_tiao = 100
 
+        self.is_supreme_ruler = False
+
         logger.info(f"DEBUG: Player {user_name} 初始化，realm_index={self.realm_index}")
 
     def _calculate_required_qi(self) -> int:
@@ -976,11 +1101,33 @@ class Player:
     def realm(self):
         return REALMS[self.realm_index]["name"]
 
+    def get_inventory_display(self) -> str:
+        """获取格式化后的背包显示内容（物品×数量）"""
+        if not self.inventory:
+            return "无"
+        # 统计物品数量
+        item_counts = {}
+        for item in self.inventory:
+            if item in item_counts:
+                item_counts[item] += 1
+            else:
+                item_counts[item] = 1
+
+        # 格式化显示
+        return ", ".join([f"{name}×{count}" for name, count in item_counts.items()])
+
     @property
     def title(self):
         titles = ["无名小卒", "初露锋芒", "小有名气", "一方强者", "威震四方",
-                  "名动大陆", "绝世高手", "一代宗师", "巅峰强者", "超凡入圣", "位面强者", "万古至尊","世界主宰"]
-        return titles[self.realm_index]
+                  "名动大陆", "绝世高手", "一代宗师", "巅峰强者", "超凡入圣",
+                  "位面强者", "万古至尊", "世界主宰", "混沌主宰"]
+        title = titles[self.realm_index]
+        if self.is_supreme_ruler:
+            title = '''
+            　　✦˖* ～～～ 至 · 高 · 主 · 宰 ～～～ *˖✦\n
+　　              ✨ 星河寂灭我独行，天地唯吾敕令鸣 ✨
+            '''
+        return title
 
     @property
     def power(self):
@@ -1009,6 +1156,8 @@ class Player:
                     temp_multiplier *= (1 + value / 10 / 4)
 
         base_power *= temp_multiplier
+        if self.is_supreme_ruler:
+            base_power *= 1.3
         return base_power
 
     def can_train(self):
@@ -1032,13 +1181,45 @@ class Player:
             self.level_up()
 
     def level_up(self):
+        """升级逻辑"""
         self.current_qi -= self.required_qi
         self.level += 1
         self.required_qi = self._calculate_required_qi()
 
+        # 主宰境界需要混沌结晶才能突破
+        if self.realm_index == 12 and self.level > 1 and "混沌结晶" not in self.inventory:
+            self.level -= 1
+            self.current_qi = self.required_qi - 1
+            return False
+        # 主宰境界突破时消耗混沌结晶
+        if self.realm_index == 12 and self.level > 1 and "混沌结晶" in self.inventory:
+            self.inventory.remove("混沌结晶")
+        # 突破到混沌主宰需要100混沌结晶和1混沌核心
+        if self.realm_index == 12 and self.level > REALMS[self.realm_index]["levels"]:
+            if ("混沌结晶" not in self.inventory or self.inventory.count(
+                    "混沌结晶") < 100) or "混沌核心" not in self.inventory:
+                self.level -= 1
+                self.current_qi = self.required_qi - 1
+                return False
+            # 消耗材料
+            for _ in range(100):
+                self.inventory.remove("混沌结晶")
+            self.inventory.remove("混沌核心")
+            return True
         if self.level > REALMS[self.realm_index]["levels"]:
-            return True  # 需要突破
+            return True
         return False
+
+
+
+    # def level_up(self):
+    #     self.current_qi -= self.required_qi
+    #     self.level += 1
+    #     self.required_qi = self._calculate_required_qi()
+    #
+    #     if self.level > REALMS[self.realm_index]["levels"]:
+    #         return True  # 需要突破
+    #     return False
 
     def take_damage(self, amount: int):
         self.health = max(0, self.health - amount)
@@ -1077,7 +1258,7 @@ class Player:
         return True, ""
 
     def add_item(self, item_name: str):
-        if len(self.inventory) < 20 + sum(10 for item in self.inventory if "空间戒指" in item):
+        if len(self.inventory) < 200 + sum(10 for item in self.inventory if "空间戒指" in item):
             self.inventory.append(item_name)
             return True
         return False
@@ -1140,6 +1321,10 @@ class Player:
             return False, msg
         min_gain, max_gain = REALMS[self.realm_index]["train_gain"]
         base_gain = random.randint(min_gain, max_gain)
+
+        if self.realm_index == 12 and "混沌结晶" not in self.inventory:
+            return False, "主宰境界修炼需要混沌结晶引导，否则无法吸收斗气！"
+
         now = time.time()
         addicted = 0.5
         for boost_type, (value, expire) in self.temp_boosts.items():
@@ -1191,63 +1376,6 @@ class Player:
             return True, f"★ 突破至 {self.realm} {self.level}星！★"
         return True, f"修炼获得{qi_gain}斗气点（基础{base_gain} x{boost:.1f}），当前进度：{self.current_qi}/{self.required_qi}"
 
-    # def train(self):
-    #     if not self.can_train():
-    #         remaining = int(self.cooldowns["train"] - (time.time() - self.last_train_time))
-    #         return False, f"修炼需要冷却，还需等待{remaining}秒"
-    #
-    #     status_ok, msg = self.check_status()
-    #     if not status_ok:
-    #         return False, msg
-    #
-    #     min_gain, max_gain = REALMS[self.realm_index]["train_gain"]
-    #     base_gain = random.randint(min_gain, max_gain)
-    #
-    #     now = time.time()
-    #     addicted = 0.5
-    #     for boost_type, (value, expire) in self.temp_boosts.items():
-    #         if now >= expire:
-    #             continue  # 过期，跳过
-    #         if boost_type == "train_safe":
-    #             addicted -= value
-    #             if addicted < 0:
-    #                 addicted = 0
-    #         if boost_type == "train_immune":
-    #             addicted = 0
-    #         if boost_type == "train_perfect":
-    #             addicted = 0
-    #     if addicted > 0.5 and random.random() < addicted:
-    #         return False, f"修炼的时候心神不宁，气息紊乱，神志恍惚，仿佛要失控一般！"
-    #
-    #     boost = 1.0
-    #     boost = boost + self.training_progress
-    #
-    #     for boost_type, (value, expire) in self.temp_boosts.items():
-    #         if now >= expire:
-    #             continue  # 过期，跳过
-    #         if boost_type == "train_boost" or boost_type == "train_perfect":
-    #             boost *= (1 + value)
-    #
-    #     qi_gain = int(base_gain * boost)
-    #     for boost_type, (value, expire) in self.temp_boosts.items():
-    #         if now >= expire:
-    #             continue  # 过期，跳过
-    #         if boost_type == "train_extra":
-    #             qi_gain = qi_gain * (1 + value)
-    #
-    #     self.current_qi += qi_gain
-    #     self.health += 10
-    #     if self.health>self.max_health:
-    #         self.health = self.max_health
-    #     self.last_train_time = time.time()
-    #
-    #     if self.current_qi >= self.required_qi:
-    #         need_breakthrough = self.level_up()
-    #         if need_breakthrough:
-    #             return True, "已达到突破条件！使用 /突破 尝试突破"
-    #         return True, f"★ 突破至 {self.realm} {self.level}星！★"
-    #
-    #     return True, f"修炼获得{qi_gain}斗气点（基础{base_gain} x{boost:.1f}），当前进度：{self.current_qi}/{self.required_qi}"
 
     def breakthrough(self):
         if self.level < REALMS[self.realm_index]["levels"]:
@@ -1475,6 +1603,29 @@ class GameWorld:
         self.last_lottery_draw = 0  # 上次开奖时间
         self.lottery_tickets = {}  # 玩家购买的彩票 {user_id: [ticket_numbers]}
         self.lottery_history = []  # 历史开奖记录
+
+        self.supreme_ruler = None  # 当前至高主宰玩家ID
+        self.world_boss_alive = True  # 世界boss状态
+        self.world_boss_hp = 1000000000  # 世界boss血量
+        self.world_boss_max_hp = 1000000000  # 世界boss最大血量
+        self.supreme_ruler_title = "至高主宰"  # 称号名称
+        self.supreme_ruler_bonus = 1.5  # 至高主宰加成系数
+
+
+    def reset_world_boss(self):
+        """重置世界boss"""
+        self.world_boss_alive = True
+        self.world_boss_hp = self.world_boss_max_hp
+
+    def get_dominator_players(self):
+        """获取当前世界中的所有主宰玩家"""
+        return [p for p in self.players.values() if p.realm_index == 12]
+
+    def get_dominator_ranking(self, top_n=10):
+        """获取主宰玩家战力排行榜"""
+        dominators = self.get_dominator_players()
+        sorted_doms = sorted(dominators, key=lambda x: x.power, reverse=True)
+        return sorted_doms[:top_n]
 
     def generate_technique(self):
         """按概率生成功法"""
@@ -2090,6 +2241,218 @@ class PillSystem:
         # 默认显示第1页
         return PillSystem.list_all_pills(page=1)
 
+
+class DungeonManager:
+    def __init__(self):
+        self.active_dungeons = {}  # {dungeon_id: DungeonInstance}
+        self.next_dungeon_id = 1
+        self.pending_confirmations = {}  # {dungeon_id: set(player_ids)}
+
+    def create_dungeon(self, world: GameWorld, level: str, player_ids: List[str]) -> str:
+        """创建新副本"""
+        if level not in DUNGEON_LEVELS:
+            return f"无效的副本等级: {level}"
+
+        players = [world.players[pid] for pid in player_ids if pid in world.players]
+        if not players:
+            return "没有有效的玩家参与副本"
+
+        if len(players) > 5:
+            return "副本最多支持5名玩家"
+
+        dungeon_id = f"dungeon-{self.next_dungeon_id}"
+        self.next_dungeon_id += 1
+
+        dungeon = DungeonInstance(
+            dungeon_id=dungeon_id,
+            level=level,
+            players=players,
+            boss_power=DUNGEON_LEVELS[level]["boss_power"],
+            creator_id=player_ids[0]  # 第一个玩家是发起者
+        )
+        self.active_dungeons[dungeon_id] = dungeon
+        # 初始化确认集合，包含所有玩家ID
+        self.pending_confirmations[dungeon_id] = set(player_ids)
+
+        # 生成奖励预览
+        dungeon_info = DUNGEON_LEVELS[level]
+        reward_preview = []
+        for item in dungeon_info["drop_items"]:
+            prob_percent = int(item["probability"] * 100)
+            quantity = f"{item['quantity'][0]}-{item['quantity'][1]}" if isinstance(item["quantity"], tuple) else item[
+                "quantity"]
+            reward_preview.append(f"- {item['name']} ({prob_percent}%几率, 数量: {quantity})")
+
+        player_names = ", ".join(p.user_name for p in players)
+        return (
+            f"=== 副本组队成功 ===\n"
+            f"副本等级: {level}\n"
+            f"参与玩家: {player_names}\n"
+            f"BOSS战力: {dungeon.boss_power:,}\n"
+            f"队伍总战力: {dungeon.total_power:,}\n\n"
+            f"=== 可能获得的奖励 ===\n"
+            f"{reward_preview}\n\n"
+            f"金币范围: {dungeon_info['gold_range'][0]:,}-{dungeon_info['gold_range'][1]:,}\n"
+            f"奖励倍率: {dungeon_info['reward_factor']}x\n\n"
+            f"副本ID: {dungeon_id}\n"
+            f"所有队员需输入 /接受副本 {dungeon_id} 确认准备就绪\n"
+            f"当所有队员确认后，发起者可输入 /开始副本 {dungeon_id} 开始挑战"
+        )
+
+    def confirm_dungeon(self, dungeon_id: str, player_id: str) -> str:
+        """玩家确认准备就绪"""
+        if dungeon_id not in self.active_dungeons:
+            return "无效的副本ID"
+
+        if dungeon_id not in self.pending_confirmations:
+            return "该副本已准备好，等待发起者开始"
+
+        if player_id not in self.pending_confirmations[dungeon_id]:
+            return "你不是该副本的参与者"
+
+        self.pending_confirmations[dungeon_id].remove(player_id)
+        remaining = len(self.pending_confirmations[dungeon_id])
+
+        if remaining == 0:
+            del self.pending_confirmations[dungeon_id]
+            return f"所有队员已确认！发起者现在可以输入 /开始副本 {dungeon_id} 开始挑战"
+        else:
+            return f"已确认准备就绪，还剩下 {remaining} 位队员需要确认"
+
+    def start_dungeon(self, dungeon_id: str, player_id: str) -> Tuple[bool, str]:
+        """开始副本挑战并返回结果"""
+        if dungeon_id not in self.active_dungeons:
+            return False, "无效的副本ID"
+
+        dungeon = self.active_dungeons[dungeon_id]
+
+        # 检查是否是发起者
+        if player_id != dungeon.creator_id:
+            return False, "只有副本发起者可以开始挑战"
+
+        # 检查是否所有玩家都已确认
+        if dungeon_id in self.pending_confirmations:
+            remaining = len(self.pending_confirmations[dungeon_id])
+            return False, f"还有 {remaining} 位队员未确认，无法开始挑战"
+
+        dungeon = self.active_dungeons.pop(dungeon_id)
+        return dungeon.run_battle()
+
+
+class DungeonInstance:
+    def __init__(self, dungeon_id: str, level: str, players: List[Player], boss_power: int, creator_id: str):
+        self.dungeon_id = dungeon_id
+        self.level = level
+        self.players = players
+        self.boss_power = boss_power
+        self.creator_id = creator_id  # 副本发起者ID
+        self.start_time = time.time()
+
+    @property
+    def total_power(self) -> int:
+        """计算队伍总战力"""
+        return sum(p.power for p in self.players)
+
+    def run_battle(self) -> Tuple[bool, str]:
+        """执行副本战斗逻辑"""
+        # 计算胜率 (队伍战力/(队伍战力+boss战力))
+        power_diff = self.total_power - self.boss_power
+        random_effect = random.uniform(-0.2 * self.boss_power, 0.2 * self.boss_power)
+        adjusted_diff = power_diff + random_effect
+        # 如果调整后的差距 ≤0，则玩家获胜
+        victory = adjusted_diff <= 0
+
+        result_msg = self._generate_result_message(victory)
+        if victory:
+            self._distribute_rewards()
+
+        return victory, result_msg
+
+    def _generate_result_message(self, victory: bool) -> str:
+        """生成战斗结果消息"""
+        dungeon_info = DUNGEON_LEVELS[self.level]
+        player_names = ", ".join(p.user_name for p in self.players)
+
+        if victory:
+            # 计算金币奖励
+            gold_min, gold_max = dungeon_info["gold_range"]
+            gold_reward = random.randint(gold_min, gold_max) * dungeon_info["reward_factor"]
+
+            # 收集实际掉落的物品
+            dropped_items = {}
+            for item in dungeon_info["drop_items"]:
+                if random.random() < item["probability"]:
+                    quantity = item["quantity"] if isinstance(item["quantity"], int) else random.randint(
+                        *item["quantity"])
+                    if item["name"] in dropped_items:
+                        dropped_items[item["name"]] += quantity
+                    else:
+                        dropped_items[item["name"]] = quantity
+
+            # 生成奖励详情
+            reward_details = [f"金币: {int(gold_reward):,}"]
+            if dropped_items:
+                reward_details.append("\n掉落物品:")
+                for item_name, quantity in dropped_items.items():
+                    reward_details.append(f"- {item_name} ×{quantity}")
+            else:
+                reward_details.append("\n(本次未掉落物品)")
+
+            reward_info = "\n".join(reward_details)
+
+            return (
+                f"=== 副本挑战成功 ===\n"
+                f"副本等级: {self.level}\n"
+                f"参与玩家: {player_names}\n"
+                f"BOSS战力: {self.boss_power:,}\n"
+                f"队伍总战力: {self.total_power:,}\n"
+                f"经过激烈战斗，你们成功击败了BOSS！\n\n"
+                f"=== 获得奖励 ===\n"
+                f"{reward_info}"
+            )
+        else:
+            # 失败惩罚
+            damage_per_player = int(self.boss_power * 0.2 / len(self.players))
+            for player in self.players:
+                player.take_damage(damage_per_player)
+            return (
+                f"=== 副本挑战失败 ===\n"
+                f"副本等级: {self.level}\n"
+                f"参与玩家: {player_names}\n"
+                f"BOSS战力: {self.boss_power:,}\n"
+                f"队伍总战力: {self.total_power:,}\n"
+                f"BOSS的实力远超想象，队伍不敌败退！\n"
+                f"每位玩家损失了{damage_per_player}点生命值"
+            )
+
+    def _distribute_rewards(self):
+        """分配副本奖励并返回实际掉落的物品"""
+        dungeon_info = DUNGEON_LEVELS[self.level]
+
+        # 基础金币奖励
+        gold_min, gold_max = dungeon_info["gold_range"]
+        gold_reward = random.randint(gold_min, gold_max) * dungeon_info["reward_factor"]
+
+        # 收集实际掉落的物品
+        dropped_items = {}
+        for item in dungeon_info["drop_items"]:
+            if random.random() < item["probability"]:
+                quantity = item["quantity"] if isinstance(item["quantity"], int) else random.randint(*item["quantity"])
+                if item["name"] in dropped_items:
+                    dropped_items[item["name"]] += quantity
+                else:
+                    dropped_items[item["name"]] = quantity
+        # 分配奖励给玩家
+        for player in self.players:
+            # 金币奖励
+            player.gold += int(gold_reward)
+
+            # 物品奖励
+            for item_name, quantity in dropped_items.items():
+                for _ in range(quantity):
+                    player.add_item(item_name)
+        return gold_reward, dropped_items
+
 # ==================== 主插件类 ====================
 @register("dpcq_final", "author", "斗破苍穹最终版", "1.0.0", "repo url")
 class DouPoCangQiongFinal(Star):
@@ -2098,6 +2461,7 @@ class DouPoCangQiongFinal(Star):
         self.worlds: Dict[str, GameWorld] = {}
         self.player_world_map: Dict[str, str] = {}
         self.persistence = DataPersistence()
+        self.dungeon_manager = DungeonManager()
         self._load_all_worlds()
 
     def _load_all_worlds(self):
@@ -2261,7 +2625,7 @@ class DouPoCangQiongFinal(Star):
             f"【生命】{player.health}/{player.max_health} {'(濒死)' if player.is_dying else ''}\n"
             f"【战力】{player.power}\n"
             f"【装备】{player.zb}\n"
-            f"【物品】{', '.join(player.inventory) if player.inventory else '无'}\n"
+            f"【物品】{player.get_inventory_display()}\n"
         )
 
         if player.temp_boosts:
@@ -2305,7 +2669,7 @@ class DouPoCangQiongFinal(Star):
             f"【生命】{player.health}/{player.max_health} {'(濒死)' if player.is_dying else ''}\n"
             f"【战力】{player.power}\n"
             f"【装备】{player.zb}\n"
-            f"【物品】{', '.join(player.inventory) if player.inventory else '无'}\n"
+            f"【物品】{player.get_inventory_display()}\n"
         )
 
         if player.temp_boosts:
@@ -2356,126 +2720,29 @@ class DouPoCangQiongFinal(Star):
     @filter.command("修炼_s", private=True)
     async def private_train(self, event: AstrMessageEvent):
         user_id = event.get_sender_id()
-        args = event.message_str.strip().split()
+
         if user_id not in self.player_world_map:
             yield event.plain_result("你还没有加入任何游戏，请先在群聊中使用 /dp_join 加入游戏！")
             return
-
-        # 解析分钟数参数
-        minutes = 1  # 默认1分钟
-        if len(args) > 1:
-            try:
-                minutes = int(args[1])
-                if minutes <= 0:
-                    yield event.plain_result("分钟数必须大于0！")
-                    return
-                if minutes > 1440:  # 限制最大24小时
-                    yield event.plain_result("连续修炼时间不能超过24小时！")
-                    return
-            except ValueError:
-                yield event.plain_result("参数错误，请输入有效的分钟数！")
-                return
 
         group_id = self.player_world_map[user_id]
         world = self._get_world(group_id)
         player = world.players[user_id]
 
-        # 如果是单次修炼
-        if minutes == 1:
-            success, msg = player.train()
-            if not success:
-                yield event.plain_result(msg)
-                return
+        success, msg = player.train()
 
-            if "突破" in msg:
-                yield event.plain_result(
-                    f"{msg}\n"
-                    f"当前境界：{player.realm} {player.level}星\n"
-                    f"斗气进度：{player.current_qi}/{player.required_qi}"
-                )
-            else:
-                yield event.plain_result(msg)
+        if not success:
+            yield event.plain_result(msg)
+            return
+
+        if "突破" in msg:
+            yield event.plain_result(
+                f"{msg}\n"
+                f"当前境界：{player.realm} {player.level}星\n"
+                f"斗气进度：{player.current_qi}/{player.required_qi}"
+            )
         else:
-            # 连续修炼
-            total_gain = 0
-            breakthrough_count = 0
-            level_up_count = 0
-            failed_count = 0
-            yield event.plain_result(f"开始连续修炼{minutes}分钟...")
-
-            start_time = time.time()  # 记录开始时间
-            duration = minutes * 60  # 将分钟转换为秒
-            last_report_time = start_time  # 记录上次报告时间
-            report_interval = 10 * 60  # 每10分钟报告一次（600秒）
-
-            while time.time() - start_time < duration:
-                success, msg = player.train(continuous=True)
-
-                if not success:
-                    if "冷却" not in msg:  # 不统计冷却导致的失败
-                        failed_count += 1
-                    continue
-
-                # 解析获得的斗气值
-                if "获得" in msg and "斗气点" in msg:
-                    try:
-                        # 从消息中提取获得的斗气值
-                        parts = msg.split("获得")
-                        qi_part = parts[1].split("斗气点")[0]
-                        qi_gain = int(qi_part.strip())
-                        total_gain += qi_gain
-                    except:
-                        pass
-
-                if "突破至" in msg:
-                    level_up_count += 1
-                if "突破条件" in msg:
-                    breakthrough_count += 1
-
-                current_time = time.time()
-                if current_time - last_report_time >= report_interval:
-                    elapsed_minutes = int((current_time - start_time) / 60)
-                    yield event.plain_result(f"修炼进度：{elapsed_minutes}/{minutes}分钟")
-                    last_report_time = current_time  # 更新上次报告时间
-
-            # 生成最终报告
-            result_msg = f"连续修炼{minutes}分钟完成！\n"
-            result_msg += f"总获得斗气：{total_gain}\n"
-            result_msg += f"突破次数：{breakthrough_count}\n"
-            result_msg += f"升级次数：{level_up_count}\n"
-            if failed_count > 0:
-                result_msg += f"修炼失败：{failed_count}次\n"
-            result_msg += f"当前境界：{player.realm} {player.level}星\n"
-            result_msg += f"斗气进度：{player.current_qi}/{player.required_qi}"
-
-            yield event.plain_result(result_msg)
-
-    # @filter.command("修炼_s", private=True)
-    # async def private_train(self, event: AstrMessageEvent):
-    #     user_id = event.get_sender_id()
-    #
-    #     if user_id not in self.player_world_map:
-    #         yield event.plain_result("你还没有加入任何游戏，请先在群聊中使用 /dp_join 加入游戏！")
-    #         return
-    #
-    #     group_id = self.player_world_map[user_id]
-    #     world = self._get_world(group_id)
-    #     player = world.players[user_id]
-    #
-    #     success, msg = player.train()
-    #
-    #     if not success:
-    #         yield event.plain_result(msg)
-    #         return
-    #
-    #     if "突破" in msg:
-    #         yield event.plain_result(
-    #             f"{msg}\n"
-    #             f"当前境界：{player.realm} {player.level}星\n"
-    #             f"斗气进度：{player.current_qi}/{player.required_qi}"
-    #         )
-    #     else:
-    #         yield event.plain_result(msg)
+            yield event.plain_result(msg)
 
 
     @filter.command("突破_s")
@@ -3441,66 +3708,64 @@ class DouPoCangQiongFinal(Star):
     @filter.command("dp_help", private=True)
     async def show_help(self, event: AstrMessageEvent):
         help_text = (
-            "╔════════════════════════════╗\n"
-            "║     🌟 斗破苍穹 · 修行指南 🌟     ║\n"
-            "║       一入斗气，万劫不复       ║\n"
-            "╚════════════════════════════╝\n\n"
+            "╔════════════════════════════════════════╗\n"
+            "║          🌟 斗破苍穹·终极版 🌟          ║\n"
+            "║        修炼之路·一入斗气万劫不复        ║\n"
+            "╚════════════════════════════════════════╝\n\n"
 
-            "🔥━━━━━━━━━━ 基础操作 ━━━━━━━━━━🔥\n"
-            "🔹 /dp_join       → 加入游戏（仅群聊）\n"
-            "🔹 /状态          → 查看你的斗气、境界、装备\n"
-            "🔹 /状态_s        → 私聊查看状态（含群ID）\n"
-            "🔹 /复活          → 濒死时使用复活丹\n\n"
+            "🔥━━━━━━━━━━ 基础指令 ━━━━━━━━━━━🔥\n"
+            "🔹 /dp_join - 加入游戏(群聊)\n"
+            "🔹 /状态 - 查看角色状态\n"
+            "🔹 /状态_s - 私聊查看状态(含群ID)\n"
+            "🔹 /复活 - 濒死时使用复活丹\n\n"
 
-            "⚡━━━━━━━━━━ 修炼突破 ━━━━━━━━━━⚡\n"
-            "🔹 /修炼          → 修炼斗气（5分钟冷却）\n"
-            "🔹 /修炼_s        → 私聊修炼（冷却共享）\n"
-            "🔹 /突破          → 冲击新境界（需斗气满）\n\n"
+            "⚡━━━━━━━━━━ 修炼系统 ━━━━━━━━━━━⚡\n"
+            "🔹 /修炼 - 修炼斗气(1分钟冷却)\n"
+            "🔹 /修炼_s - 私聊修炼\n"
+            "🔹 /突破 - 冲击新境界(需斗气满)\n"
+            "🔹 /丹药 - 查看丹药系统\n"
+            "🔹 /丹药_s - 私聊查询丹药\n\n"
 
-            "🌍━━━━━━━━━━ 探索冒险 ━━━━━━━━━━🌍\n"
-            "🔹 /探索 初级     → 低风险，小奖励（10分钟）\n"
-            "🔹 /探索 中级     → 中风险，中收获（30分钟）\n"
-            "🔹 /探索 高级     → 高风险，大机缘（60分钟）\n"
-            "🔹 /探索_s        → 私聊探索，静默进行\n\n"
+            "🌍━━━━━━━━━━ 探索冒险 ━━━━━━━━━━━🌍\n"
+            "🔹 /探索 初级/中级/高级 - 探索世界\n"
+            "🔹 /探索_s - 私聊探索\n"
+            "🔹 /挑战副本 - 组队挑战副本\n"
+            "🔹 /开始副本 [ID] - 开始副本战斗\n\n"
 
-            "⚔️━━━━━━━━━━ 战斗对战 ━━━━━━━━━━⚔️\n"
-            "🔹 /对战 @玩家    → 向他人发起生死战\n"
-            "🔹 /接受挑战      → 接受战斗请求\n"
-            "🔹 /救助 @玩家    → 救助濒死之人（需丹药）\n\n"
+            "⚔━━━━━━━━━━ 战斗系统 ━━━━━━━━━━━⚔\n"
+            "🔹 /对战 @玩家 - 发起对战\n"
+            "🔹 /接受挑战 - 接受对战请求\n"
+            "🔹 /救助 @玩家 - 救助濒死玩家\n"
+            "🔹 /挑战至高主宰 - 混沌主宰专属挑战\n\n"
 
-            "💊━━━━━━━━━━ 丹药系统 ━━━━━━━━━━💊\n"
-            "🔹 /丹药          → 浏览所有丹药（第1页）\n"
-            "🔹 /丹药 聚气     → 搜索含“聚气”的丹药\n"
-            "🔹 /丹药 8品混沌丹 → 查看具体丹药详情\n"
-            "🔹 /丹药_s        → 私聊查询，不扰群\n"
-            "🔹 /炼丹_s 五品   → 炼制五品丹药（需内丹）\n"
-            "🔹 /使用 回血丹   → 使用背包中的物品\n\n"
+            "💰━━━━━━━━━━ 经济系统 ━━━━━━━━━━━💰\n"
+            "🔹 /商店 - 交易市场\n"
+            "🔹 /出售 - 出售物品\n"
+            "🔹 /出售_s - 私聊出售\n"
+            "🔹 /拍卖会 - 参与珍品拍卖\n"
+            "🔹 /斗破彩 - 斗气彩票系统\n\n"
 
-            "💰━━━━━━━━━━ 交易市场 ━━━━━━━━━━💰\n"
-            "🔹 /商店          → 查看当前出售商品\n"
-            "🔹 /商店 buy 1    → 购买第1号商品\n"
-            "🔹 /出售 内丹     → 出售物品到市场\n"
-            "🔹 /出售_s        → 私聊出售，更安全\n\n"
+            "🔮━━━━━━━━━━ 特殊系统 ━━━━━━━━━━━🔮\n"
+            "🔹 /炼丹_s [品阶] - 炼制丹药(需内丹)\n"
+            "🔹 /dp_world - 查看世界动态\n"
+            "🔹 /dp_save - 保存游戏数据(管理员)\n"
+            "🔹 /dp_load - 加载游戏数据(管理员)\n\n"
 
-            "🎁━━━━━━━━━━ 活动系统 ━━━━━━━━━━🎁\n"
-            "🔹 /拍卖会        → 查看珍品拍卖\n"
-            "🔹 /斗破彩        → 斗气彩，每10分钟开奖\n"
-            "🔹 /斗破彩 buy    → 购买一注（100金币）\n"
-            "🔹 /dp_world      → 查看世界大事件\n\n"
+            "📜━━━━━━━━━━ 游戏说明 ━━━━━━━━━━━📜\n"
+            "• 境界体系: 斗之气→斗者→...→混沌主宰\n"
+            "• 每个境界10星,满星后可突破\n"
+            "• 濒死状态需5分钟内复活\n"
+            "• 私聊指令需先在群聊绑定\n"
+            "• 所有冷却在群聊与私聊间共享\n\n"
 
-            "🛡️━━━━━━━━━━ 系统说明 ━━━━━━━━━━🛡️\n"
-            "• 炼丹成功率 = 90% - 品阶×8%\n"
-            "• 最高可炼：自身境界+1品\n"
-            "• 境界压制：差2级，战力翻倍\n"
-            "• 复活效果：低品(30%)、中品(70%)、高品(100%+特效)\n\n"
+            "🎯━━━━━━━━━━ 新增内容 ━━━━━━━━━━━🎯\n"
+            "1. 混沌副本系统(混沌初境/秘境/核心)\n"
+            "2. 至高主宰挑战玩法\n"
+            "3. 炼丹系统(需魔兽内丹)\n"
+            "4. 拍卖会珍品竞拍\n"
+            "5. 斗气彩票玩法\n\n"
 
-            "⚠️━━━━━━━━━━ 重要提醒 ━━━━━━━━━━⚠️\n"
-            "1. 私聊命令需先在群聊 /dp_join 绑定\n"
-            "2. 濒死状态需在5分钟内复活，否则掉落物品\n"
-            "3. 拍卖会、彩票、商店每小时刷新一次\n"
-            "4. 所有冷却在群聊与私聊间共享\n\n"
-
-            "💬 提示：发送 /help 可在群聊查看精简版帮助\n"
+            "💡 提示: 输入具体指令查看详细用法\n"
             "✨ 愿你一掌碎星河，成就斗帝之路！"
         )
 
@@ -3844,6 +4109,183 @@ class DouPoCangQiongFinal(Star):
             yield event.plain_result(help_msg)
         else:
             yield event.plain_result(result)
+
+    @filter.command("挑战至高主宰", private=True)
+    async def challenge_supreme_ruler(self, event: AstrMessageEvent):
+        user_id = event.get_sender_id()
+
+        # 1. 检查玩家是否已加入游戏
+        if user_id not in self.player_world_map:
+            yield event.plain_result("你还没有加入任何游戏，请先在群聊中使用 /dp_join 加入游戏！")
+            return
+
+        group_id = self.player_world_map[user_id]
+        world = self._get_world(group_id)
+        player = world.players[user_id]
+
+        # 2. 检查是否为混沌主宰
+        if player.realm_index != 13:  # 混沌主宰的境界索引为13
+            yield event.plain_result("你必须先达到混沌主宰境界才能挑战至高主宰！")
+            return
+
+        # 4. 检查当前是否有至高主宰
+        if world.supreme_ruler is None:
+            # 没有现任至高主宰，直接与系统设定的100亿战力对战
+            supreme_power = 10000000000  # 100亿战力
+            player_power = player.power
+            # 战斗结果计算（加入随机因素）
+            win_chance = min(0.95, player_power / (player_power + supreme_power))
+            if random.random() < win_chance:
+                # 挑战成功
+                world.supreme_ruler = player.user_id
+                player.is_supreme_ruler = True
+                # 战力提升奖励
+                power_bonus = int(supreme_power * 0.1)  # 获得10%至高主宰战力
+                player.apply_temp_boost("supreme_ruler", 0.5, 86400)  # 50%加成，持续24小时
+                yield event.plain_result(
+                    f"★ 惊天动地！你成功击败了世界意志：混沌至尊！ ★\n"
+                    f"【{player.user_name}】正式成为新的至高主宰！\n"
+                    f"获得天道战力加成：+30%（永久）\n"
+                    f"当前战力：{player.power}"
+                )
+            else:
+                # 挑战失败惩罚
+                damage = int(player.max_health * 0.3)  # 损失30%生命值
+                player.take_damage(damage)
+                dl = random.randint(5, 10)
+                if player.level - dl <= 0:
+                    player.realm_index = player.realm_index - 1
+                    player.level = REALMS[player.realm_index]["level"] - 1
+                yield event.plain_result(
+                    f"★ 挑战失败！至高主宰的威压让你难以承受！ ★\n"
+                    f"你损失了{damage}点生命值\n"
+                    f"受到天道反噬，掉落{dl}等级"
+                    f"当前生命：{player.health}/{player.max_health}\n"
+                    f"不要气馁，提升实力后可以再次挑战！"
+                )
+        else:
+            # 5. 挑战现任至高主宰玩家
+            if world.supreme_ruler == player.user_id:
+                yield event.plain_result("你已经是至高主宰了，无需挑战自己！")
+                return
+
+            target_player = world.players.get(world.supreme_ruler)
+            if not target_player:
+                yield event.plain_result("至高主宰玩家数据异常，请联系管理员")
+                return
+
+            # 战斗逻辑（基于双方战力）
+            attacker_power = player.power
+            defender_power = target_player.power
+
+            # 计算胜率（加入随机因素）
+            win_chance = min(0.9, attacker_power / (attacker_power + defender_power * 1.2))  # 防守方有20%优势
+
+            if random.random() < win_chance:
+                # 挑战成功
+                old_ruler_name = target_player.user_name
+                target_player.is_supreme_ruler = False
+
+                # 转移至高主宰称号
+                world.supreme_ruler = player.user_id
+                player.is_supreme_ruler = True
+
+                # 战力提升奖励
+                power_bonus = int(defender_power * 0.1)  # 获得前任10%战力
+                player.apply_temp_boost("supreme_victory", 0.3, 86400)  # 30%加成，持续24小时
+
+                # 失败者惩罚
+                target_damage = int(target_player.max_health * 0.2)  # 损失20%生命值
+                target_player.take_damage(target_damage)
+
+                yield event.plain_result(
+                    f"★ 惊天一战！{player.user_name}击败了{old_ruler_name}！ ★\n"
+                    f"【{player.user_name}】成为新的至高主宰！\n"
+                    f"获得战力加成：+30%（持续24小时）\n"
+                    f"前任至高主宰损失{target_damage}点生命值\n"
+                    f"当前战力对比：\n"
+                    f"挑战者：{attacker_power:,}\n"
+                    f"前任主宰：{defender_power:,}"
+                )
+            else:
+                # 挑战失败惩罚
+                damage = int(player.max_health * 0.3)  # 损失30%生命值
+                player.take_damage(damage)
+
+                yield event.plain_result(
+                    f"★ 挑战失败！{target_player.user_name}的威压让你难以承受！ ★\n"
+                    f"你损失了{damage}点生命值\n"
+                    f"当前生命：{player.health}/{player.max_health}\n"
+                    f"战力对比：\n"
+                    f"你：{attacker_power:,}\n"
+                    f"至高主宰：{defender_power:,}\n"
+                    f"不要气馁，提升实力后可以再次挑战！"
+                )
+
+        # 保存游戏状态
+        self._save_world(group_id)
+
+    @filter.command("挑战副本")
+    async def create_dungeon(self, event: AstrMessageEvent):
+        """创建副本队伍"""
+        world = self._get_world(event.get_group_id())
+        user_id = event.get_sender_id()
+        args = event.message_str.strip().split()
+
+        if user_id not in world.players:
+            yield event.plain_result("你还没有加入游戏，请输入 /dp_join 加入游戏！")
+            return
+
+        if len(args) < 2:
+            yield event.plain_result(
+                "请指定副本等级和队友QQ号！\n"
+                "可用副本等级: 初级、中级、高级、顶级、混沌初境、混沌秘境、混沌核心\n"
+                "示例: /挑战副本 高级 123456 123457 123458"
+            )
+            return
+
+        level = args[1]
+        teammate_qqs = args[2:]
+        all_player_ids = [user_id] + teammate_qqs
+        all_player_ids = list(set(all_player_ids))
+
+        result = self.dungeon_manager.create_dungeon(world, level, all_player_ids)
+        yield event.plain_result(result)
+
+    @filter.command("接受副本")
+    async def confirm_dungeon(self, event: AstrMessageEvent):
+        """确认准备就绪"""
+        args = event.message_str.strip().split()
+        if len(args) < 2:
+            yield event.plain_result("请指定要接受的副本ID！")
+            return
+
+        dungeon_id = args[1]
+        user_id = event.get_sender_id()
+        result = self.dungeon_manager.confirm_dungeon(dungeon_id, user_id)
+        yield event.plain_result(result)
+
+    @filter.command("开始副本")
+    async def start_dungeon(self, event: AstrMessageEvent):
+        """开始副本挑战"""
+        args = event.message_str.strip().split()
+        if len(args) < 2:
+            yield event.plain_result("请指定要开始的副本ID！")
+            return
+
+        dungeon_id = args[1]
+        user_id = event.get_sender_id()
+        success, result = self.dungeon_manager.start_dungeon(dungeon_id, user_id)
+
+        if success:
+            # 保存世界状态
+            self._save_world(event.get_group_id())
+        yield event.plain_result(result)
+
+
+
+
+
 
 
 
