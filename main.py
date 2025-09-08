@@ -2356,38 +2356,44 @@ class DungeonInstance:
     def run_battle(self) -> Tuple[bool, str]:
         """执行副本战斗逻辑"""
         # 计算胜率 (队伍战力/(队伍战力+boss战力))
-        power_diff = self.total_power - self.boss_power
-        random_effect = random.uniform(-0.2 * self.boss_power, 0.2 * self.boss_power)
-        adjusted_diff = power_diff + random_effect
-        # 如果调整后的差距 ≤0，则玩家获胜
-        victory = adjusted_diff <= 0
-
-        result_msg = self._generate_result_message(victory)
+        power_ratio = self.total_power / self.boss_power
+        # ✅ 核心改动：平移 Sigmoid，让 ratio=0.7 时胜率=50%
+        # 目标：ratio=1.0 时胜率≈80%
+        center_point = 0.7  # 在这里，胜率是50%
+        steepness = 5.0  # 控制曲线陡峭度
+        base_probability = 1 / (1 + math.exp(-steepness * (power_ratio - center_point)))
+        # 小幅随机扰动 ±5%
+        random_effect = random.uniform(-0.05, 0.05)
+        final_probability = max(0.0, min(1.0, base_probability + random_effect))
+        victory = random.random() < final_probability
         if victory:
-            self._distribute_rewards()
+            gold_reward, dropped_items = self._distribute_rewards()
+        else:
+            gold_reward, dropped_items = None, None
+        result_msg = self._generate_result_message(victory,gold_reward,dropped_items)
 
         return victory, result_msg
 
-    def _generate_result_message(self, victory: bool) -> str:
+    def _generate_result_message(self, victory: bool,gold_reward=None,dropped_items=None) -> str:
         """生成战斗结果消息"""
         dungeon_info = DUNGEON_LEVELS[self.level]
         player_names = ", ".join(p.user_name for p in self.players)
 
         if victory:
             # 计算金币奖励
-            gold_min, gold_max = dungeon_info["gold_range"]
-            gold_reward = random.randint(gold_min, gold_max) * dungeon_info["reward_factor"]
+            # gold_min, gold_max = dungeon_info["gold_range"]
+            # gold_reward = random.randint(gold_min, gold_max) * dungeon_info["reward_factor"]
 
-            # 收集实际掉落的物品
-            dropped_items = {}
-            for item in dungeon_info["drop_items"]:
-                if random.random() < item["probability"]:
-                    quantity = item["quantity"] if isinstance(item["quantity"], int) else random.randint(
-                        *item["quantity"])
-                    if item["name"] in dropped_items:
-                        dropped_items[item["name"]] += quantity
-                    else:
-                        dropped_items[item["name"]] = quantity
+            # # 收集实际掉落的物品
+            # dropped_items = {}
+            # for item in dungeon_info["drop_items"]:
+            #     if random.random() < item["probability"]:
+            #         quantity = item["quantity"] if isinstance(item["quantity"], int) else random.randint(
+            #             *item["quantity"])
+            #         if item["name"] in dropped_items:
+            #             dropped_items[item["name"]] += quantity
+            #         else:
+            #             dropped_items[item["name"]] = quantity
 
             # 生成奖励详情
             reward_details = [f"金币: {int(gold_reward):,}"]
