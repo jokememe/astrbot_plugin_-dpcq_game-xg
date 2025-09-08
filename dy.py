@@ -1079,8 +1079,6 @@ class Player:
         pill_result = PillSystem.use_pill(self, item_name)
         if pill_result[0] or pill_result[1] != "无效的丹药":
             return pill_result
-
-
         return False, "无效的物品"
 
     def train(self):
