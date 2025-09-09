@@ -91,7 +91,7 @@ DUNGEON_LEVELS = {
     "顶级": {
         "min_realm": 9,  # 斗圣
         "max_realm": 13,  # 主宰
-        "boss_power": 100000000,
+        "boss_power": 50000000,
         "reward_factor": 3.0,
         "drop_items": [
             {"name": "9品至尊丹", "probability": 0.4, "quantity": 1},
@@ -110,7 +110,7 @@ DUNGEON_LEVELS = {
     "混沌初境": {
         "min_realm": 12,  # 主宰
         "max_realm": 13,  # 混沌主宰
-        "boss_power": 500000000,
+        "boss_power": 150000000,
         "reward_factor": 4.0,
         "drop_items": [
             {"name": "混沌结晶", "probability": 0.5, "quantity": (1, 2)},
@@ -125,7 +125,7 @@ DUNGEON_LEVELS = {
     "混沌秘境": {
         "min_realm": 12,
         "max_realm": 13,
-        "boss_power": 5000000000,
+        "boss_power": 1000000000,
         "reward_factor": 5.0,
         "drop_items": [
             {"name": "混沌结晶", "probability": 0.8, "quantity": (2, 3)},
@@ -434,8 +434,8 @@ PILL_EFFECT_HANDLERS = {
 
     # 永久增益类
     "perm_health": lambda player, pill: (
-        setattr(player, 'max_health', player.max_health + pill["effect_value"]),
-        setattr(player, 'health', player.health + pill["effect_value"])
+        setattr(player, 'max_health', player.apply_temp_boost("perm_health", pill["effect_value"],float('inf'))),
+        setattr(player, 'health', player.heal(pill["effect_value"]))
     )
 }
 
@@ -1092,8 +1092,13 @@ class Player:
         logger.info(f"{self.user_name} 当前境界 {self.realm_index}，基础斗气 {base}")
         return base + (self.level - 1) * int(base * 0.1)
 
-    def _calculate_max_health(self):
+    def _calculate_max_health(self,effect_value=None):
         max_health = 100 + (self.realm_index**2)*(10)
+        now = time.time()
+        for boost_type, (value, expire) in self.temp_boosts.items():
+            if now < expire:
+                if boost_type == 'perm_health':
+                    max_health += value
         logger.info(f"{self.user_name} 当前境界 {self.realm_index}，当前最大生命值 {max_health}")
         return max_health
 
@@ -4253,7 +4258,14 @@ class DouPoCangQiongFinal(Star):
         level = args[1]
         teammate_qqs = args[2:]
         all_player_ids = [user_id] + teammate_qqs
-        all_player_ids = list(set(all_player_ids))
+        # all_player_ids = list(set(all_player_ids))
+        seen = set()
+        deduped = []
+        for pid in [user_id] + teammate_qqs:
+            if pid not in seen:
+                seen.add(pid)
+                deduped.append(pid)
+        all_player_ids = deduped
 
         result = self.dungeon_manager.create_dungeon(world, level, all_player_ids)
         yield event.plain_result(result)
