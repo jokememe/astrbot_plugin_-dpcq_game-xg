@@ -1,5 +1,5 @@
-name: astrbot_plugin_dpcq_game # 这是你的插件的唯一识别名。
-desc: "斗破苍穹游戏插件" # 插件简短描述
-version: v1.0 # 插件版本号。格式：v1.1.1 或者 v1.1
+name: astrbot_plugin_-dpcq_game # 这是你的插件的唯一识别名。
+desc: "一个文字修仙游戏，基于经典小说《斗破苍穹》设定，包含境界突破、炼丹系统、副本挑战等丰富玩法" # 插件简短描述
+version: v1.14 # 插件版本号。格式：v1.1.1 或者 v1.1
 author: bandaotehe # 作者
-repo: https://github.com/bandaotehe/astrbot_plugin_-dpcq_game.git
+repo: https://github.com/bandaotehe/astrbot_plugin_-dpcq_game
