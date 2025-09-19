@@ -3220,11 +3220,11 @@ class DouPoCangQiongFinal(Star):
         # 检查是否需要刷新拍卖会物品
         current_time = time.time()
 
-        if current_time - world.last_auction_refresh > 3600:  # 2小时刷新一次
+        if current_time - world.last_auction_refresh > 7200:  # 2小时刷新一次
             world.generate_auction_items()
             world.last_auction_refresh = current_time
             world.auction_bids = {}  # 清空竞拍记录
-            world.auction_end_time = current_time + 3600  # 拍卖持续2小时
+            world.auction_end_time = current_time + 7200  # 拍卖持续2小时
             if hasattr(world, 'auction_task'):
                 world.auction_task.cancel()
             # 设置新的定时任务，在拍卖结束时发送通知
@@ -4381,7 +4381,7 @@ class DouPoCangQiongFinal(Star):
                         if player.gold >= bid_amount:
                             # 扣除金币并给予物品
                             player.gold -= bid_amount
-                            player.add_item(item)
+                            player.add_item(item['name'])
                             result_message += (
                                 f"【{item['name']}】由 {bid_info['bidder_name']} "
                                 f"以 {bid_amount}金币 成功拍得！\n"
