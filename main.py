@@ -45,6 +45,7 @@ DUNGEON_LEVELS = {
         "boss_power": 1000,
         "reward_factor": 1.0,
         "drop_items": [
+            {"name": "魔兽内丹", "probability": 0.1, "quantity": (1,2)},
             {"name": "1品聚气丹", "probability": 0.6, "quantity": (1, 3)},
             {"name": "2品聚气散", "probability": 0.4, "quantity": (1, 2)},
             {"name": "3品破障丹", "probability": 0.3, "quantity": 1},
@@ -62,6 +63,7 @@ DUNGEON_LEVELS = {
         "boss_power": 200000,
         "reward_factor": 1.5,
         "drop_items": [
+            {"name": "魔兽内丹", "probability": 0.2, "quantity": (1,2)},
             {"name": "3品破障丹", "probability": 0.5, "quantity": (1, 2)},
             {"name": "3品玄灵丹", "probability": 0.4, "quantity": (1, 2)},
             {"name": "3品龙力丹", "probability": 0.3, "quantity": 1},
@@ -76,6 +78,7 @@ DUNGEON_LEVELS = {
         "boss_power": 5000000,
         "reward_factor": 2.0,
         "drop_items": [
+            {"name": "魔兽内丹", "probability": 0.3, "quantity": (1,2)},
             {"name": "6品造化丹", "probability": 0.4, "quantity": 1},
             {"name": "6品玄灵丹", "probability": 0.4, "quantity": 1},
             {"name": "6品风行丹", "probability": 0.3, "quantity": 1},
@@ -94,6 +97,7 @@ DUNGEON_LEVELS = {
         "boss_power": 50000000,
         "reward_factor": 3.0,
         "drop_items": [
+            {"name": "魔兽内丹", "probability": 0.4, "quantity": (1,2)},
             {"name": "9品至尊丹", "probability": 0.4, "quantity": 1},
             {"name": "9品涅槃丹", "probability": 0.3, "quantity": 1},
             {"name": "9品洗髓丹", "probability": 0.5, "quantity": 1},
@@ -113,6 +117,7 @@ DUNGEON_LEVELS = {
         "boss_power": 150000000,
         "reward_factor": 4.0,
         "drop_items": [
+            {"name": "魔兽内丹", "probability": 0.5, "quantity": (2,4)},
             {"name": "混沌结晶", "probability": 0.5, "quantity": (1, 2)},
             {"name": "7品阴阳丹", "probability": 0.8, "quantity": 1},
             {"name": "8品混沌丹", "probability": 0.8, "quantity": 1},
@@ -129,6 +134,7 @@ DUNGEON_LEVELS = {
         "boss_power": 500000000,
         "reward_factor": 5.0,
         "drop_items": [
+            {"name": "魔兽内丹", "probability": 0.6, "quantity": (3,6)},
             {"name": "混沌结晶", "probability": 0.8, "quantity": (2, 3)},
             {"name": "混沌核心", "probability": 0.1, "quantity": 1},
             {"name": "8品不朽丹", "probability": 0.5, "quantity": 1},
@@ -145,6 +151,7 @@ DUNGEON_LEVELS = {
         "boss_power": 10000000000,
         "reward_factor": 6.0,
         "drop_items": [
+            {"name": "魔兽内丹", "probability": 0.8, "quantity": (5,10)},
             {"name": "混沌结晶", "probability": 0.99, "quantity": (3, 5)},
             {"name": "混沌核心", "probability": 0.4, "quantity": (1, 2)},
             {"name": "9品永生丹", "probability": 0.6, "quantity": 1},
@@ -1852,7 +1859,7 @@ class GameWorld:
             self.lottery_tickets[user_id] = []
 
         self.lottery_tickets[user_id].append(numbers)
-        self.lottery_pool += 100  # 每注50金币加入奖池
+        self.lottery_pool += 100  # 每注100金币加入奖池
         return True, f"购买成功！你的号码是：{numbers[:5]} + {numbers[5:]}"
 
     def draw_lottery(self) -> Dict[str, Any]:
