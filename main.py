@@ -122,6 +122,9 @@ DUNGEON_LEVELS = {
             {"name": "7品阴阳丹", "probability": 0.8, "quantity": 1},
             {"name": "8品混沌丹", "probability": 0.8, "quantity": 1},
             {"name": "天阶功法", "probability": 0.6, "quantity": 1},
+            {"name": "神阶功法", "probability": 0.2, "quantity": 1},
+            {"name": "圣阶功法", "probability": 0.1, "quantity": 1},
+            {"name": "仙阶功法", "probability": 0.02, "quantity": 1},
             {"name": "9品轮回丹", "probability": 0.6, "quantity": 1},
             {"name": "9品玄灵丹", "probability": 0.5, "quantity": 1}
         ],
@@ -140,6 +143,10 @@ DUNGEON_LEVELS = {
             {"name": "8品不朽丹", "probability": 0.5, "quantity": 1},
             {"name": "9品轮回丹", "probability": 0.5, "quantity": 1},
             {"name": "天阶功法", "probability": 0.9, "quantity": 1},
+            {"name": "神阶功法", "probability": 0.4, "quantity": 1},
+            {"name": "圣阶功法", "probability": 0.2, "quantity": 1},
+            {"name": "仙阶功法", "probability": 0.1, "quantity": 1},
+            {"name": "仙阶功法", "probability": 0.05, "quantity": 1},
             {"name": "9品永生丹", "probability": 0.2, "quantity": 1}
         ],
         "gold_range": (80000, 120000),
@@ -156,6 +163,11 @@ DUNGEON_LEVELS = {
             {"name": "混沌核心", "probability": 0.4, "quantity": (1, 2)},
             {"name": "9品永生丹", "probability": 0.6, "quantity": 1},
             {"name": "天阶功法", "probability": 0.9, "quantity": 1},
+            {"name": "神阶功法", "probability": 0.6, "quantity": 1},
+            {"name": "圣阶功法", "probability": 0.4, "quantity": 1},
+            {"name": "仙阶功法", "probability": 0.2, "quantity": 1},
+            {"name": "仙阶功法", "probability": 0.1, "quantity": 1},
+            {"name": "无上功法", "probability": 0.05, "quantity": 1},
             {"name": "9品洗髓丹", "probability": 0.5, "quantity": 1},
             {"name": "8品混沌丹", "probability": 0.7, "quantity": 1}
         ],
@@ -459,10 +471,15 @@ REALMS = [
 
 # 功法加成系数与价值系统
 CULTIVATION_BOOST = {
-    "黄阶功法": {"boost": 0.1, "value": 500, "price": 750},
-    "玄阶功法": {"boost": 0.2, "value": 1500, "price": 2250},
-    "地阶功法": {"boost": 0.8, "value": 5000, "price": 7500},
-    "天阶功法": {"boost": 1.5, "value": 15000, "price": 22500}
+    "黄阶功法":   {"boost": 0.1,  "value": 500,       "price": 750},
+    "玄阶功法":   {"boost": 0.3,  "value": 1500,     "price": 2250},
+    "地阶功法":   {"boost": 0.8,  "value": 5000,     "price": 7500},
+    "天阶功法":   {"boost": 1.8,  "value": 15000,    "price": 225500},
+    "神阶功法":   {"boost": 4.0,  "value": 50000,    "price": 7500000},
+    "圣阶功法":   {"boost": 8.0,  "value": 150000,   "price": 22500000},
+    "仙阶功法":   {"boost": 12.0, "value": 3500000,   "price": 52500000},
+    "帝阶功法":   {"boost": 16.0, "value": 7000000,   "price": 105000000},
+    "无上功法":   {"boost": 20.0, "value": 120000000, "price": 900000000},
 }
 
 OTHER_DATA = [
@@ -1621,6 +1638,8 @@ class GameWorld:
         self.last_lottery_draw = 0  # 上次开奖时间
         self.lottery_tickets = {}  # 玩家购买的彩票 {user_id: [ticket_numbers]}
         self.lottery_history = []  # 历史开奖记录
+        self.lottery_end_time = 0  #
+        self.lottery_task = []
 
         self.supreme_ruler = None  # 当前至高主宰玩家ID
         self.world_boss_alive = True  # 世界boss状态
@@ -1648,8 +1667,8 @@ class GameWorld:
     def generate_technique(self):
         """按概率生成功法"""
         technique = random.choices(
-            ["黄阶功法", "玄阶功法", "地阶功法", "天阶功法"],
-            weights=[65, 30, 4, 1]  # 黄阶65%，玄阶30%，地阶4%，天阶1%
+            ["黄阶功法", "玄阶功法", "地阶功法", "天阶功法","神阶功法","圣阶功法","仙阶功法"],
+            weights=[65, 30, 10, 5, 1, 0.5, 0.1]  # 黄阶65%，玄阶30%，地阶4%，天阶1%
         )[0]
         return {
             "name": technique,
@@ -1779,15 +1798,34 @@ class GameWorld:
         rare_items = []
 
         # 添加高级功法
-        for name, data in CULTIVATION_BOOST.items():
-            if name in ["地阶功法", "天阶功法"]:
-                rare_items.append({
-                    "name": name,
-                    "description": f"修炼速度+{int(data['boost'] * 100)}%",
-                    "base_price": int(data['price'] * random.uniform(1.5, 2.5)),
-                    "rank": "高级",
-                    "type": "功法"
-                })
+        ranks = list(CULTIVATION_BOOST.keys())
+        probabilities = [0, 0, 0, 70.0, 20.0, 5.0, 3.0, 1.4, 0.6]  # 总和 100%
+        # 验证总和
+        assert abs(sum(probabilities) - 100.0) < 1e-6, "概率总和必须为100%"
+
+        # 生成5个功法（可重复）
+        selected_names = random.choices(ranks, weights=probabilities, k=5)
+
+        # 构建结果列表（和你原来的结构一致）
+        rare_items = []
+        for name in selected_names:
+            data = CULTIVATION_BOOST[name]
+            rare_items.append({
+                "name": name,
+                "description": f"修炼速度+{int(data['boost'] * 100)}%",
+                "base_price": int(data['price'] * random.uniform(1.5, 2.5)),
+                "rank": "高级" if name in ["天阶功法", "神阶功法"] else "普通",  # 可扩展
+                "type": "功法"
+            })
+        # for name, data in CULTIVATION_BOOST.items():
+        #     if name in ["天阶功法","神阶功法"]:
+        #         rare_items.append({
+        #             "name": name,
+        #             "description": f"修炼速度+{int(data['boost'] * 100)}%",
+        #             "base_price": int(data['price'] * random.uniform(1.5, 2.5)),
+        #             "rank": "高级",
+        #             "type": "功法"
+        #         })
 
         # 添加高级丹药（从PILLS_DATA中筛选6品及以上）
         for pill in PILLS_DATA:
@@ -1864,6 +1902,8 @@ class GameWorld:
 
     def draw_lottery(self) -> Dict[str, Any]:
         """开奖并计算中奖结果"""
+        if self.lottery_pool <= 0:
+            self.lottery_pool = 100000
         winning_numbers = self.generate_lottery_numbers()
         winners = {
             "一等奖": [],  # 5+2
@@ -3822,6 +3862,10 @@ class DouPoCangQiongFinal(Star):
             "🔹 /dp_world - 查看世界动态\n"
             "🔹 /dp_save - 保存游戏数据(管理员)\n"
             "🔹 /dp_load - 加载游戏数据(管理员)\n\n"
+            
+            "🎯━━━━━━━━━━ 帮助 ━━━━━━━━━━━🎯\n"
+            " 输入 更新公告 查看最新更新内容\n"
+            " 输入 dp_help 查看帮助\n"
 
             "📜━━━━━━━━━━ 游戏说明 ━━━━━━━━━━━📜\n"
             "• 境界体系: 斗之气→斗者→...→混沌主宰\n"
@@ -3831,17 +3875,43 @@ class DouPoCangQiongFinal(Star):
             "• 所有冷却在群聊与私聊间共享\n\n"
 
             "🎯━━━━━━━━━━ 新增内容 ━━━━━━━━━━━🎯\n"
-            "1. 混沌副本系统(混沌初境/秘境/核心)\n"
-            "2. 至高主宰挑战玩法\n"
-            "3. 炼丹系统(需魔兽内丹)\n"
-            "4. 拍卖会珍品竞拍\n"
-            "5. 斗气彩票玩法\n\n"
-
+            " 输入 更新公告 查看最新更新内容\n"
             "💡 提示: 输入具体指令查看详细用法\n"
             "✨ 愿你一掌碎星河，成就斗帝之路！"
         )
 
         yield event.plain_result(help_text)
+
+    @filter.command("更新公告", private=True)
+    async def show_changelog(self, event: AstrMessageEvent):
+        changelog_text = (
+            "╔════════════════════════════════════════╗\n"
+            "║        📢 斗破苍穹·版本更新日志 📢       ║\n"
+            "║        最近更新：2025年9月25日          ║\n"
+            "╚════════════════════════════════════════╝\n\n"
+
+            "🆕━━━━━━━━━━ 新增内容 ━━━━━━━━━━━🆕\n"
+            "• 🎰 **斗破彩定时开奖**：每2小时自动开奖一次，无需手动触发！\n"
+            "• 📜 **全新功法体系上线**：修炼效率飞跃提升，共9阶功法：\n"
+            "   └ 黄阶 → 玄阶 → 地阶 → 天阶 → 神阶 → 圣阶 → 仙阶 → 帝阶 → 无上功法\n"
+            "   └ 功法可大幅提升修炼收益（最高20倍！）\n"
+            "   └ 获取途径：**高级副本掉落** 或 **拍卖会竞拍**\n\n"
+
+            "💰━━━━━━━━━━ 功法详情（节选）━━━━━━━━━💰\n"
+            "• 黄阶功法：+10% 修炼效率｜售价 750\n"
+            "• 地阶功法：+80% 修炼效率｜售价 7,500\n"
+            "• 天阶功法：+180% 修炼效率｜售价 225,500\n"
+            "• 无上功法：+2000% 修炼效率｜售价 900,000,000\n"
+            "（完整属性可在游戏内通过 /商店 或 拍卖会 查看）\n\n"
+
+            "✨━━━━━━━━━━ 系统优化 ━━━━━━━━━━━✨\n"
+            "• 自动化斗破彩流程，提升玩家参与体验\n"
+            "• 功法系统与修炼、突破深度联动，策略性更强\n\n"
+
+            "🔮 下版本预告：宗门创建 & 自由交易！\n"
+            "💡 提示：输入 /dp_help 查看全部指令，/商店 查看功法详情"
+        )
+        yield event.plain_result(changelog_text)
 
     @filter.command("dp_clear", admin=True)
     async def clear_world(self, event: AstrMessageEvent):
@@ -3906,18 +3976,16 @@ class DouPoCangQiongFinal(Star):
 
         current_time = time.time()
         logger.info(f"剩余时间：{current_time}")
-        if current_time - world.last_lottery_draw >= 7200:
-            if world.lottery_tickets:
-                result = world.draw_lottery()
-                # 可以先发送开奖结果
-                message = world._send_lottery_result(event, result)
-                yield event.plain_result(message)
-            # 重置开奖时间，即使没人买票也重置
+        if not hasattr(world, 'lottery_task'):
             world.last_lottery_draw = current_time
+            world.lottery_end_time = current_time + 7200  # 2小时后开奖
+            world.lottery_task = asyncio.create_task(
+                self._send_lottery_end_message(event, event.get_group_id(), world.lottery_end_time)
+            )
 
         if len(args) == 1:
-            # 显示彩票信息
-            remaining_time = max(0, 7200 - int((time.time() - world.last_lottery_draw)))
+            # 显示彩票信息（修改剩余时间计算方式）
+            remaining_time = max(0, int(world.lottery_end_time - current_time))
             hours = int(remaining_time // 3600)
             minutes = int((remaining_time % 3600) // 60)
 
@@ -4362,6 +4430,9 @@ class DouPoCangQiongFinal(Star):
             self._save_world(event.get_group_id())
         yield event.plain_result(result)
 
+
+
+
     async def _send_auction_end_message(self,event: AstrMessageEvent, group_id: str, end_time: float):
         try:
             # 计算需要等待的时间
@@ -4415,6 +4486,34 @@ class DouPoCangQiongFinal(Star):
             )
         except Exception as e:
             logger.error(f"拍卖会结束消息发送失败: {e}")
+
+    async def _send_lottery_end_message(self, event: AstrMessageEvent, group_id: str, end_time: float):
+        try:
+            # 计算需要等待的时间
+            wait_time = end_time - time.time()
+            if wait_time > 0:
+                await asyncio.sleep(wait_time)
+            # 获取当前世界状态
+            world = self._get_world(group_id)
+            # 检查彩票是否真的该开奖了（防止提前刷新）
+            if time.time() < world.lottery_end_time:
+                return
+            # 执行开奖逻辑
+            if world.lottery_tickets:
+                result = world.draw_lottery()
+                message = world._send_lottery_result(event, result)
+                # 发送开奖结果
+                message_chain = MessageChain().message(message)
+                await self.context.send_message(event.unified_msg_origin, message_chain)
+            # 重置开奖时间
+            world.last_lottery_draw = time.time()
+            world.lottery_end_time = world.last_lottery_draw + 7200
+            # 设置新的定时任务
+            world.lottery_task = asyncio.create_task(
+                self._send_lottery_end_message(event, group_id, world.lottery_end_time)
+            )
+        except Exception as e:
+            logger.error(f"彩票开奖消息发送失败: {e}")
 
 
 
