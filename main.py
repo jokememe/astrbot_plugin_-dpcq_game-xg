@@ -1638,7 +1638,7 @@ class GameWorld:
         self.last_lottery_draw = 0  # 上次开奖时间
         self.lottery_tickets = {}  # 玩家购买的彩票 {user_id: [ticket_numbers]}
         self.lottery_history = []  # 历史开奖记录
-        self.lottery_end_time = 0  #
+        self.lottery_end_time = self.last_lottery_draw  #
         self.lottery_task = []
 
         self.supreme_ruler = None  # 当前至高主宰玩家ID
@@ -1647,6 +1647,10 @@ class GameWorld:
         self.world_boss_max_hp = 1000000000  # 世界boss最大血量
         self.supreme_ruler_title = "至高主宰"  # 称号名称
         self.supreme_ruler_bonus = 1.5  # 至高主宰加成系数
+
+        # 新增交易系统
+        self.trade_requests: Dict[str, Dict] = {}  # {trade_id: trade_data}
+        self.next_trade_id = 1
 
 
     def reset_world_boss(self):
@@ -3856,6 +3860,11 @@ class DouPoCangQiongFinal(Star):
             "🔹 /出售_s - 私聊出售\n"
             "🔹 /拍卖会 - 参与珍品拍卖\n"
             "🔹 /斗破彩 - 斗气彩票系统\n\n"
+            
+            "💱━━━━━━━━━━ 交易系统 ━━━━━━━━━━━━💱\n"
+            "🔹🔹 /交易 @玩家 物品 金额 - 发起交易\n"
+            "🔹🔹 /接受交易 交易号 - 接受交易请求\n"
+            "🔹🔹 /拒绝交易 交易号 - 拒绝交易请求\n"
 
             "🔮━━━━━━━━━━ 特殊系统 ━━━━━━━━━━━🔮\n"
             "🔹 /炼丹_s [品阶] - 炼制丹药(需内丹)\n"
@@ -3893,9 +3902,11 @@ class DouPoCangQiongFinal(Star):
             "🆕━━━━━━━━━━ 新增内容 ━━━━━━━━━━━🆕\n"
             "• 🎰 **斗破彩定时开奖**：每2小时自动开奖一次，无需手动触发！\n"
             "• 📜 **全新功法体系上线**：修炼效率飞跃提升，共9阶功法：\n"
+            "• 📜 **自由交易系统上线**: 新增自由交易系统"
             "   └ 黄阶 → 玄阶 → 地阶 → 天阶 → 神阶 → 圣阶 → 仙阶 → 帝阶 → 无上功法\n"
             "   └ 功法可大幅提升修炼收益（最高20倍！）\n"
             "   └ 获取途径：**高级副本掉落** 或 **拍卖会竞拍**\n\n"
+            
 
             "💰━━━━━━━━━━ 功法详情（节选）━━━━━━━━━💰\n"
             "• 黄阶功法：+10% 修炼效率｜售价 750\n"
@@ -4514,6 +4525,205 @@ class DouPoCangQiongFinal(Star):
             )
         except Exception as e:
             logger.error(f"彩票开奖消息发送失败: {e}")
+
+    @filter.command("交易")
+    async def trade_item(self, event: AstrMessageEvent):
+        """发起交易请求"""
+        world = self._get_world(event.get_group_id())
+        user_id = event.get_sender_id()
+        args = event.message_str.strip().split()
+
+        if user_id not in world.players:
+            yield event.plain_result("你还没有加入游戏，请输入 /dp_join 加入游戏！")
+            return
+        player = world.players[user_id]
+        # 检查参数格式
+        if len(args) < 4:
+            yield event.plain_result(
+                "交易命令格式：/交易 @对方玩家 物品名称 金额\n"
+                "示例：/交易 @张三 1品聚气丹 100"
+            )
+            return
+        # 解析参数
+        target_name = args[1].strip("@")
+        item_name = " ".join(args[2:-1])
+        try:
+            amount = int(args[-1])
+        except ValueError:
+            yield event.plain_result("金额必须是整数！")
+            return
+        # 检查金额有效性
+        if amount <= 0:
+            yield event.plain_result("交易金额必须大于0！")
+            return
+        # 检查物品是否存在
+        if item_name not in player.inventory:
+            yield event.plain_result(f"你没有【{item_name}】这个物品！")
+            return
+        # 查找目标玩家
+        target = None
+        for p in world.players.values():
+            if p.user_name == target_name or p.user_id == target_name:
+                target = p
+                break
+        if not target:
+            yield event.plain_result(f"找不到玩家【{target_name}】！")
+            return
+
+        if target.user_id == user_id:
+            yield event.plain_result("你不能和自己交易！")
+            return
+
+        # 检查目标玩家是否在线
+        if target.is_dying:
+            yield event.plain_result(f"{target.user_name} 处于濒死状态，无法交易！")
+            return
+
+        # 生成交易ID
+        trade_id = f"trade-{world.next_trade_id}"
+        world.next_trade_id += 1
+
+        # 创建交易请求
+        trade_data = {
+            "trade_id": trade_id,
+            "sender_id": user_id,
+            "sender_name": player.user_name,
+            "target_id": target.user_id,
+            "target_name": target.user_name,
+            "item_name": item_name,
+            "amount": amount,
+            "create_time": time.time(),
+            "status": "pending"
+        }
+        world.trade_requests[trade_id] = trade_data
+
+        yield event.plain_result(
+            f"✅ 交易请求已发送！\n"
+            f"📦 物品：{item_name}\n"
+            f"💰 金额：{amount}金币\n"
+            f"👤 对方：{target.user_name}\n"
+            f"🔢 交易号：{trade_id}\n"
+            f"请让对方使用以下命令处理：\n"
+            f"• /接受交易 {trade_id} - 接受交易\n"
+            f"• /拒绝交易 {trade_id} - 拒绝交易"
+        )
+
+    @filter.command("接受交易")
+    async def accept_trade(self, event: AstrMessageEvent):
+        """接受交易请求"""
+        world = self._get_world(event.get_group_id())
+        user_id = event.get_sender_id()
+        args = event.message_str.strip().split()
+
+        if user_id not in world.players:
+            yield event.plain_result("你还没有加入游戏，请输入 /dp_join 加入游戏！")
+            return
+
+        if len(args) < 2:
+            yield event.plain_result("请指定交易号！格式：/接受交易 交易号")
+            return
+
+        trade_id = args[1]
+
+        # 查找交易请求
+        if trade_id not in world.trade_requests:
+            yield event.plain_result("交易号无效或交易已过期！")
+            return
+
+        trade_data = world.trade_requests[trade_id]
+        # 检查交易是否指向当前玩家
+        if trade_data["target_id"] != user_id:
+            yield event.plain_result("这个交易不是发给你的！")
+            return
+        target_player = world.players[user_id]
+        requester_id = trade_data["sender_id"]
+        requester = world.players[requester_id]
+        item_name = trade_data["item_name"]
+        amount = trade_data["amount"]
+        # 检查请求者是否还有该物品
+        if item_name not in requester.inventory:
+            del world.trade_requests[trade_id]
+            yield event.plain_result(f"{requester.user_name} 已经没有【{item_name}】这个物品了！")
+            return
+        # 检查目标玩家是否有足够的金币
+        if target_player.gold < amount:
+            del world.trade_requests[trade_id]
+            yield event.plain_result(f"你的金币不足！需要{amount}金币，你只有{target_player.gold}金币")
+            return
+        # 检查目标玩家背包是否已满
+        if len(target_player.inventory) >= 200 + sum(10 for item in target_player.inventory if "空间戒指" in item):
+            del world.trade_requests[trade_id]
+            yield event.plain_result("你的背包已满，无法接收物品！")
+            return
+        # 执行交易
+        try:
+            # 从请求者移除物品
+            requester.inventory.remove(item_name)
+            # 向目标玩家添加物品
+            target_player.inventory.append(item_name)
+            # 金币转移
+            target_player.gold -= amount
+            requester.gold += amount
+            # 移除交易请求
+            del world.trade_requests[trade_id]
+            yield event.plain_result(
+                f"✅ 交易成功完成！\n"
+                f"🔢 交易号：{trade_id}\n"
+                f"📦 {requester.user_name} → {target_player.user_name}：{item_name}\n"
+                f"💰 {target_player.user_name} → {requester.user_name}：{amount}金币\n"
+                f"🏦 {requester.user_name} 现有金币：{requester.gold}\n"
+                f"🏦 {target_player.user_name} 现有金币：{target_player.gold}"
+            )
+        except Exception as e:
+            logger.error(f"交易执行失败: {e}")
+            yield event.plain_result("交易执行失败，请稍后重试！")
+
+    @filter.command("拒绝交易")
+    async def reject_trade(self, event: AstrMessageEvent):
+        """拒绝交易请求"""
+        world = self._get_world(event.get_group_id())
+        user_id = event.get_sender_id()
+        args = event.message_str.strip().split()
+
+        if user_id not in world.players:
+            yield event.plain_result("你还没有加入游戏，请输入 /dp_join 加入游戏！")
+            return
+
+        if len(args) < 2:
+            yield event.plain_result("请指定交易号！格式：/拒绝交易 交易号")
+            return
+
+        trade_id = args[1]
+
+        # 查找交易请求
+        if trade_id not in world.trade_requests:
+            yield event.plain_result("交易号无效或交易已过期！")
+            return
+
+        trade_data = world.trade_requests[trade_id]
+
+        # 检查交易是否指向当前玩家
+        if trade_data["target_id"] != user_id:
+            yield event.plain_result("这个交易不是发给你的！")
+            return
+
+        # 获取请求者信息
+        requester_name = trade_data["sender_name"]
+        item_name = trade_data["item_name"]
+        amount = trade_data["amount"]
+
+        # 移除交易请求
+        del world.trade_requests[trade_id]
+
+        yield event.plain_result(
+            f"❌ 已拒绝交易请求！\n"
+            f"🔢 交易号：{trade_id}\n"
+            f"📦 物品：{item_name}\n"
+            f"💰 金额：{amount}金币\n"
+            f"👤 请求者：{requester_name}\n"
+            f"交易已取消"
+        )
+
 
 
 
