@@ -1591,12 +1591,13 @@ class Player:
             "is_dying": self.is_dying,
             "death_time": self.death_time,
             "temp_boosts": self.temp_boosts,
+            "is_supreme_ruler": self.is_supreme_ruler,  # 新增持久化字段
         }
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Player":
         logger.info(f"Loading player {data['user_name']}, realm_index={data.get('realm_index')}")
-        player = cls(data["user_id"], data["user_name"],data["realm_index"])
+        player = cls(data["user_id"], data["user_name"], data["realm_index"])
         player.realm_index = data["realm_index"]
         player.level = data["level"]
         player.current_qi = data["current_qi"]
@@ -1612,7 +1613,51 @@ class Player:
         player.is_dying = data.get("is_dying", False)
         player.death_time = data.get("death_time", 0)
         player.temp_boosts = data.get("temp_boosts", {})
+        player.is_supreme_ruler = data.get("is_supreme_ruler", False)  # 新增持久化字段
         return player
+
+    # def to_dict(self) -> Dict[str, Any]:
+    #     logger.info(f"Loading player {self.user_name}, realm_index={self.realm_index}")
+    #     return {
+    #         "user_id": self.user_id,
+    #         "user_name": self.user_name,
+    #         "realm_index": self.realm_index,
+    #         "level": self.level,
+    #         "current_qi": self.current_qi,
+    #         "required_qi": self.required_qi,
+    #         "health": self.health,
+    #         "gold": self.gold,
+    #         "inventory": self.inventory,
+    #         "zb": self.zb,
+    #         "training_progress": self.training_progress,
+    #         "last_train_time": self.last_train_time,
+    #         "last_explore_time": self.last_explore_time,
+    #         "last_duel_time": self.last_duel_time,
+    #         "is_dying": self.is_dying,
+    #         "death_time": self.death_time,
+    #         "temp_boosts": self.temp_boosts,
+    #     }
+
+    # @classmethod
+    # def from_dict(cls, data: Dict[str, Any]) -> "Player":
+    #     logger.info(f"Loading player {data['user_name']}, realm_index={data.get('realm_index')}")
+    #     player = cls(data["user_id"], data["user_name"],data["realm_index"])
+    #     player.realm_index = data["realm_index"]
+    #     player.level = data["level"]
+    #     player.current_qi = data["current_qi"]
+    #     player.required_qi = data["required_qi"]
+    #     player.health = data["health"]
+    #     player.gold = data["gold"]
+    #     player.inventory = data["inventory"]
+    #     player.last_train_time = data["last_train_time"]
+    #     player.zb = data["zb"]
+    #     player.training_progress = data["training_progress"]
+    #     player.last_explore_time = data["last_explore_time"]
+    #     player.last_duel_time = data["last_duel_time"]
+    #     player.is_dying = data.get("is_dying", False)
+    #     player.death_time = data.get("death_time", 0)
+    #     player.temp_boosts = data.get("temp_boosts", {})
+    #     return player
 
 
 
@@ -2079,7 +2124,22 @@ class GameWorld:
             "last_market_refresh": self.last_market_refresh,
             "world_events": self.world_events,
             "last_event_update": self.last_event_update,
-            "duel_requests": self.duel_requests
+            "duel_requests": self.duel_requests,
+            "auction_items": self.auction_items,
+            "last_auction_refresh": self.last_auction_refresh,
+            "auction_bids": self.auction_bids,
+            "auction_end_time": self.auction_end_time,
+            "lottery_pool": self.lottery_pool,
+            "last_lottery_draw": self.last_lottery_draw,
+            "lottery_tickets": self.lottery_tickets,
+            "lottery_history": self.lottery_history,
+            "lottery_end_time": self.lottery_end_time,
+            "supreme_ruler": self.supreme_ruler,
+            "world_boss_alive": self.world_boss_alive,
+            "world_boss_hp": self.world_boss_hp,
+            "world_boss_max_hp": self.world_boss_max_hp,
+            "trade_requests": self.trade_requests,
+            "next_trade_id": self.next_trade_id,
         }
 
     @classmethod
@@ -2092,6 +2152,32 @@ class GameWorld:
         world.world_events = data["world_events"]
         world.last_event_update = data["last_event_update"]
         world.duel_requests = data.get("duel_requests", {})
+
+        # 恢复拍卖系统数据
+        world.auction_items = data.get("auction_items", [])
+        world.last_auction_refresh = data.get("last_auction_refresh", 0)
+        world.auction_bids = data.get("auction_bids", {})
+        world.auction_end_time = data.get("auction_end_time", 0)
+
+        # 恢复彩票系统数据
+        world.lottery_pool = data.get("lottery_pool", 5000000 + 213616)
+        world.last_lottery_draw = data.get("last_lottery_draw", 0)
+        world.lottery_tickets = data.get("lottery_tickets", {})
+        world.lottery_history = data.get("lottery_history", [])
+        world.lottery_end_time = data.get("lottery_end_time", 0)
+
+        # 恢复至高主宰数据
+        world.supreme_ruler = data.get("supreme_ruler")
+
+        # 恢复世界boss数据
+        world.world_boss_alive = data.get("world_boss_alive", True)
+        world.world_boss_hp = data.get("world_boss_hp", 1000000000)
+        world.world_boss_max_hp = data.get("world_boss_max_hp", 1000000000)
+
+        # 恢复交易系统数据
+        world.trade_requests = data.get("trade_requests", {})
+        world.next_trade_id = data.get("next_trade_id", 1)
+
         return world
 
 class PillSystem:
@@ -4482,10 +4568,11 @@ class DouPoCangQiongFinal(Star):
                 result_message += f"【{item['name']}】流拍，无人获得。\n"
 
             if not any_success:
-                result_message = "拍卖会已结束，所有物品都流拍了！"
-            # 发送结果消息
-            message_chain = MessageChain().message(result_message)
-            await self.context.send_message(event.unified_msg_origin, message_chain)
+               logger.info("本轮没有玩家成功竞拍")
+            else:
+                # 发送结果消息
+                message_chain = MessageChain().message(result_message)
+                await self.context.send_message(event.unified_msg_origin, message_chain)
             # 立即刷新拍卖会
             world.generate_auction_items()
             world.last_auction_refresh = time.time()
