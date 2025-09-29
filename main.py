@@ -45,7 +45,7 @@ DUNGEON_LEVELS = {
         "boss_power": 1000,
         "reward_factor": 1.0,
         "drop_items": [
-            {"name": "魔兽内丹", "probability": 0.1, "quantity": (1,2)},
+            {"name": "魔兽内丹", "probability": 0.2, "quantity": (1,2)},
             {"name": "1品聚气丹", "probability": 0.6, "quantity": (1, 3)},
             {"name": "2品聚气散", "probability": 0.4, "quantity": (1, 2)},
             {"name": "3品破障丹", "probability": 0.3, "quantity": 1},
@@ -63,7 +63,7 @@ DUNGEON_LEVELS = {
         "boss_power": 200000,
         "reward_factor": 1.5,
         "drop_items": [
-            {"name": "魔兽内丹", "probability": 0.2, "quantity": (1,2)},
+            {"name": "魔兽内丹", "probability": 0.4, "quantity": (1,2)},
             {"name": "3品破障丹", "probability": 0.5, "quantity": (1, 2)},
             {"name": "3品玄灵丹", "probability": 0.4, "quantity": (1, 2)},
             {"name": "3品龙力丹", "probability": 0.3, "quantity": 1},
@@ -78,7 +78,7 @@ DUNGEON_LEVELS = {
         "boss_power": 5000000,
         "reward_factor": 2.0,
         "drop_items": [
-            {"name": "魔兽内丹", "probability": 0.3, "quantity": (1,2)},
+            {"name": "魔兽内丹", "probability": 0.6, "quantity": (1,2)},
             {"name": "6品造化丹", "probability": 0.4, "quantity": 1},
             {"name": "6品玄灵丹", "probability": 0.4, "quantity": 1},
             {"name": "6品风行丹", "probability": 0.3, "quantity": 1},
@@ -97,7 +97,7 @@ DUNGEON_LEVELS = {
         "boss_power": 50000000,
         "reward_factor": 3.0,
         "drop_items": [
-            {"name": "魔兽内丹", "probability": 0.4, "quantity": (1,2)},
+            {"name": "魔兽内丹", "probability": 0.8, "quantity": (1,2)},
             {"name": "9品至尊丹", "probability": 0.4, "quantity": 1},
             {"name": "9品涅槃丹", "probability": 0.3, "quantity": 1},
             {"name": "9品洗髓丹", "probability": 0.5, "quantity": 1},
@@ -117,7 +117,7 @@ DUNGEON_LEVELS = {
         "boss_power": 150000000,
         "reward_factor": 4.0,
         "drop_items": [
-            {"name": "魔兽内丹", "probability": 0.5, "quantity": (2,4)},
+            {"name": "魔兽内丹", "probability": 0.9, "quantity": (2,4)},
             {"name": "混沌结晶", "probability": 0.5, "quantity": (1, 2)},
             {"name": "7品阴阳丹", "probability": 0.8, "quantity": 1},
             {"name": "8品混沌丹", "probability": 0.8, "quantity": 1},
@@ -137,7 +137,7 @@ DUNGEON_LEVELS = {
         "boss_power": 500000000,
         "reward_factor": 5.0,
         "drop_items": [
-            {"name": "魔兽内丹", "probability": 0.6, "quantity": (3,6)},
+            {"name": "魔兽内丹", "probability": 0.95, "quantity": (3,6)},
             {"name": "混沌结晶", "probability": 0.8, "quantity": (2, 3)},
             {"name": "混沌核心", "probability": 0.1, "quantity": 1},
             {"name": "8品不朽丹", "probability": 0.5, "quantity": 1},
@@ -158,7 +158,7 @@ DUNGEON_LEVELS = {
         "boss_power": 10000000000,
         "reward_factor": 6.0,
         "drop_items": [
-            {"name": "魔兽内丹", "probability": 0.8, "quantity": (5,10)},
+            {"name": "魔兽内丹", "probability": 0.95, "quantity": (5,10)},
             {"name": "混沌结晶", "probability": 0.99, "quantity": (3, 5)},
             {"name": "混沌核心", "probability": 0.4, "quantity": (1, 2)},
             {"name": "9品永生丹", "probability": 0.6, "quantity": 1},
@@ -225,7 +225,7 @@ EXPLORE_EVENTS = [
                 f"挖掘到{gold}金币"
             ),
             lambda p, level: (
-                p.take_damage(dmg := random.randint(30, 80)*(p.realm_index**2)),
+                p.take_damage(dmg := min(120, random.randint(30, 80)*(p.realm_index**2))),
                 f"矿洞突然塌方！损失{dmg}点生命值"
             ) if random.random() < 0.4 else (None, "")
         ],
@@ -248,7 +248,7 @@ EXPLORE_EVENTS = [
                 f"顿悟石碑奥义，领悟【{tech}】"
             ) if random.random() < (0.6 + ["初级", "中级", "高级"].index(level)*0.2) else (None, ""),
             lambda p, level: (
-                p.take_damage(int(p.health * (0.5 - ["初级", "中级", "高级"].index(level)*0.1))),
+                p.take_damage(min(120, int(p.health * (0.5 - ["初级", "中级", "高级"].index(level)*0.1)))),
                 "参悟时走火入魔，气血逆冲！"
             ) if random.random() < (0.3 - ["初级", "中级", "高级"].index(level)*0.1) else (None, "")
         ],
@@ -263,7 +263,7 @@ EXPLORE_EVENTS = [
                 f"强行吸收暴走灵气，获得{qi}斗气"
             ),
             lambda p, level: (
-                p.take_damage(dmg := random.randint(5, 10)*(["初级", "中级", "高级"].index(level)**3)*p.realm_index/2),
+                p.take_damage(dmg := min(120, int(random.randint(5, 10)*(["初级", "中级", "高级"].index(level)**3)*p.realm_index/2))),
                 f"经脉受损，喷出一口鲜血，损失{dmg}点生命值"
             ) if random.random() < 0.8 else (None, "")
         ],
@@ -276,9 +276,9 @@ EXPLORE_EVENTS = [
             lambda p, level: (
                 p.add_item("魔兽内丹"),
                 "奋勇击败魔兽！获得【魔兽内丹】"
-            ) if random.random() < 0.5 else (
+            ) if random.random() < 0.8 else (
                 p.take_damage(
-                    dmg := random.randint(5, 10) * (["初级", "中级", "高级"].index(level) ** 3) * p.realm_index / 2),
+                    dmg := min(120, int(random.randint(5, 10) * (["初级", "中级", "高级"].index(level) ** 3) * p.realm_index / 2))),
                 f"战斗失败，受到攻击，损失{dmg}点生命值" +
                 (f"，并丢失了【{p.inventory[-1]}】" if p.inventory and random.random() < (0.3 + 0.1 * ["初级", "中级", "高级"].index(level)) else "")
             )
@@ -348,7 +348,7 @@ EXPLORE_EVENTS = [
             lambda p, level: (p.add_item(random.choice(
                 [pill["name"] for pill in PillSystem.get_pills_by_type("recovery")[:2 + ["初级", "中级", "高级"].index(level)]]
             )), f"获得灵兽守护的丹药"),
-            lambda p, level: (p.take_damage(dmg := random.randint(5, 20) * (1 + ["初级", "中级", "高级"].index(level)**2)),
+            lambda p, level: (p.take_damage(dmg := min(120, random.randint(5, 20) * (1 + ["初级", "中级", "高级"].index(level)**2))),
                 f"被灵兽攻击，损失{dmg}点生命值") if random.random() < 0.6 else (None, "")
         ],
         "weight": 8
@@ -1099,7 +1099,7 @@ class Player:
         self.last_duel_time = 0
         self.cooldowns = {
             "train": 60,  # 1分钟冷却
-            "explore": 60,  # 1分钟冷却
+            "explore": 5,  # 1分钟冷却
             "duel": 60  # 1分钟冷却
         }
         self.zb=[] #准备栏
@@ -1107,6 +1107,7 @@ class Player:
         self.is_dying = False  # 濒死状态
         self.death_time = 0  # 死亡时间
         self.is_supreme_ruler = False
+        self.is_auto_training = False
 
         logger.info(f"DEBUG: Player {user_name} 初始化，realm_index={self.realm_index}")
 
@@ -1510,7 +1511,7 @@ class Player:
         # 额外危险判定（基于实际危险系数）
         if random.random() < actual_danger:
             base_dmg = random.randint(15, 40) * (1 + ["初级", "中级", "高级"].index(level))
-            dmg = int(base_dmg * (1 + danger_boost))
+            dmg = min(120, int(base_dmg * (1 + danger_boost)))
             self.take_damage(dmg)
             results.append(f"遭遇致命危险！损失{dmg}点生命值！")
 
@@ -1592,6 +1593,7 @@ class Player:
             "death_time": self.death_time,
             "temp_boosts": self.temp_boosts,
             "is_supreme_ruler": self.is_supreme_ruler,  # 新增持久化字段
+            "is_auto_training": self.is_auto_training,
         }
 
     @classmethod
@@ -1614,6 +1616,7 @@ class Player:
         player.death_time = data.get("death_time", 0)
         player.temp_boosts = data.get("temp_boosts", {})
         player.is_supreme_ruler = data.get("is_supreme_ruler", False)  # 新增持久化字段
+        player.is_auto_training = data.get("is_auto_training", False)
         return player
 
     # def to_dict(self) -> Dict[str, Any]:
@@ -1678,6 +1681,7 @@ class GameWorld:
         self.last_auction_refresh = 0
         self.auction_bids = {}  # {index: {'bid': amount, 'bidder': user_id, 'bidder_name': name, 'bid_time': timestamp}}
         self.auction_end_time = 0
+        self.auction_quick_win_tasks: Dict[int, asyncio.Task] = {}
 
         self.lottery_pool = 5000000 + 213616  # 奖池累计
         self.last_lottery_draw = 0  # 上次开奖时间
@@ -1895,7 +1899,7 @@ class GameWorld:
         """处理拍卖结果，在拍卖结束后调用"""
         results = []
         for index, item in enumerate(self.auction_items):
-            bid_info = self.auction_bids.get(index)
+            bid_info = self.auction_bids.get(str(index))
             if bid_info:
                 # 找到最高出价者
                 winner_id = bid_info['bidder']
@@ -2600,6 +2604,7 @@ class DouPoCangQiongFinal(Star):
         self.player_world_map: Dict[str, str] = {}
         self.persistence = DataPersistence()
         self.dungeon_manager = DungeonManager()
+        self.auto_train_tasks = {}
         self._load_all_worlds()
 
     def _load_all_worlds(self):
@@ -2635,9 +2640,64 @@ class DouPoCangQiongFinal(Star):
 
 
     async def terminate(self):
+        for task in self.auto_train_tasks.values():
+            task.cancel()
         for group_id in self.worlds:
             self._save_world(group_id)
         await super().terminate()
+
+    async def _process_quick_win(self, event: AstrMessageEvent, group_id: str, item_index: int):
+        try:
+            await asyncio.sleep(30)
+            world = self._get_world(group_id)
+
+            # Check if the item is still up for auction and has a bid
+            if item_index >= len(world.auction_items) or world.auction_items[item_index] is None:
+                if item_index in world.auction_quick_win_tasks:
+                    del world.auction_quick_win_tasks[item_index]
+                return  # Item already sold or auction ended
+
+            bid_info = world.auction_bids.get(str(item_index))
+            if not bid_info:
+                if item_index in world.auction_quick_win_tasks:
+                    del world.auction_quick_win_tasks[item_index]
+                return # No bid, should not happen if task was created
+
+            item = world.auction_items[item_index]
+            winner_id = bid_info['bidder']
+            winner_name = bid_info['bidder_name']
+            bid_amount = bid_info['bid']
+            winner = world.players.get(winner_id)
+
+            if winner and winner.deduct_gold(bid_amount):
+                winner.add_item(item['name'])
+                
+                win_message = f"⚡️快速成交！⚡️\n30秒内无人出价，【{item['name']}】以 {bid_amount} 金币的价格成交给【{winner_name}】！"
+                message_chain = MessageChain().message(win_message)
+                await self.context.send_message(event.unified_msg_origin, message_chain)
+
+                # Clean up
+                world.auction_items[item_index] = None
+                if str(item_index) in world.auction_bids:
+                    del world.auction_bids[str(item_index)]
+                if item_index in world.auction_quick_win_tasks:
+                    del world.auction_quick_win_tasks[item_index]
+                
+                self._save_world(group_id)
+            else:
+                if winner:
+                    # Not enough gold, refund. But this is checked on bid.
+                    pass
+                # Announce failure to quick-win if needed, or just let it go to normal auction.
+                if item_index in world.auction_quick_win_tasks:
+                    del world.auction_quick_win_tasks[item_index]
+
+
+        except asyncio.CancelledError:
+            # Task was cancelled, which is normal.
+            return
+        except Exception as e:
+            logger.error(f"Error in _process_quick_win for item {item_index}: {e}")
 
     async def _call_llm(self, event: AstrMessageEvent, prompt: str, system_prompt: str = "") -> str:
         func_tools_mgr = self.context.get_llm_tool_manager()
@@ -3032,8 +3092,8 @@ class DouPoCangQiongFinal(Star):
         dy_list = PillSystem.get_pills_by_rank(item_name)
         if dy_list:  # 确保该品阶有丹药
             item = random.choice(dy_list)
-            base_gl = 0.9
-            base_gl = base_gl - int(self.extract_simple_chinese_digits(item_name))*0.1*0.8
+            base_gl = 1.0
+            base_gl = base_gl - int(self.extract_simple_chinese_digits(item_name))*0.1*0.5
             if random.random() < base_gl:
                 player.inventory.remove("魔兽内丹")
                 player.inventory.append(item['name'])
@@ -3358,6 +3418,11 @@ class DouPoCangQiongFinal(Star):
         current_time = time.time()
 
         if current_time - world.last_auction_refresh > 7200:  # 2小时刷新一次
+            # Cancel all running quick-win tasks before refreshing
+            for task in world.auction_quick_win_tasks.values():
+                task.cancel()
+            world.auction_quick_win_tasks.clear()
+
             world.generate_auction_items()
             world.last_auction_refresh = current_time
             world.auction_bids = {}  # 清空竞拍记录
@@ -3384,7 +3449,7 @@ class DouPoCangQiongFinal(Star):
             # 显示拍卖会商品列表
             auction_list = f"=== 拍卖会 === (剩余时间: {hours:02d}:{minutes:02d}:{seconds:02d})\n"
             for i, item in enumerate(world.auction_items):
-                current_bid_info = world.auction_bids.get(i, {})
+                current_bid_info = world.auction_bids.get(str(i), {})
                 current_bid = current_bid_info.get('bid', item['base_price'])
                 bidder_name = current_bid_info.get('bidder_name', '无人出价')
 
@@ -3410,7 +3475,7 @@ class DouPoCangQiongFinal(Star):
 
                 if 0 <= index < len(world.auction_items):
                     item = world.auction_items[index]
-                    current_bid = world.auction_bids.get(index, {}).get('bid', item['base_price'])
+                    current_bid = world.auction_bids.get(str(index), {}).get('bid', item['base_price'])
 
                     if bid_amount <= current_bid:
                         yield event.plain_result(f"你的出价必须高于当前最高价 {current_bid} 金币！")
@@ -3425,18 +3490,29 @@ class DouPoCangQiongFinal(Star):
                         return
 
                     # 记录竞拍
-                    world.auction_bids[index] = {
+                    # Cancel previous quick-win task for this item
+                    if index in world.auction_quick_win_tasks:
+                        old_task = world.auction_quick_win_tasks.get(index)
+                        if old_task:
+                            old_task.cancel()
+
+                    world.auction_bids[str(index)] = {
                         'bid': bid_amount,
                         'bidder': user_id,
                         'bidder_name': player.user_name,
                         'bid_time': current_time
                     }
 
+                    # Start a new quick-win task
+                    new_task = asyncio.create_task(self._process_quick_win(event, event.get_group_id(), index))
+                    world.auction_quick_win_tasks[index] = new_task
+
                     # 通知所有玩家有新出价
                     yield event.plain_result(
                         f"🎉 【{player.user_name}】对 【{item['name']}】 出价 {bid_amount} 金币！\n"
                         f"📈 当前最高价：{bid_amount}金币\n"
-                        f"⏰ 拍卖剩余时间：{int((world.auction_end_time - current_time) // 60)}分钟"
+                        f"⏰ 拍卖剩余时间：{int((world.auction_end_time - current_time) // 60)}分钟\n"
+                        f"⚡️ 若30秒内无人出更高价，此物品将快速成交！"
                     )
                 else:
                     yield event.plain_result("无效的商品序号！")
@@ -3455,7 +3531,7 @@ class DouPoCangQiongFinal(Star):
                     info_text += f"类型：{item.get('type', '未知')}\n"
                     info_text += f"起拍价：{item['base_price']}金币\n"
 
-                    current_bid_info = world.auction_bids.get(index, {})
+                    current_bid_info = world.auction_bids.get(str(index), {})
                     if current_bid_info:
                         info_text += f"当前最高价：{current_bid_info.get('bid')}金币\n"
                         info_text += f"出价者：{current_bid_info.get('bidder_name')}\n"
@@ -4541,11 +4617,19 @@ class DouPoCangQiongFinal(Star):
             # 检查拍卖是否真的结束了（防止提前刷新）
             if time.time() < world.auction_end_time:
                 return
+
+            # At the end of the auction, cancel all pending quick-win tasks.
+            for task in world.auction_quick_win_tasks.values():
+                task.cancel()
+            world.auction_quick_win_tasks.clear()
+
             # 处理拍卖结果
             result_message = "🎉 拍卖会已结束！以下是竞拍结果：\n"
             any_success = False
             for index, item in enumerate(world.auction_items):
-                bid_info = world.auction_bids.get(index)
+                if item is None:  # Item might have been sold via quick-win
+                    continue
+                bid_info = world.auction_bids.get(str(index))
                 if bid_info:
                     bidder_id = bid_info['bidder']
                     bid_amount = bid_info['bid']
@@ -4810,6 +4894,67 @@ class DouPoCangQiongFinal(Star):
             f"👤 请求者：{requester_name}\n"
             f"交易已取消"
         )
+
+    async def _auto_train_loop(self, event: AstrMessageEvent, group_id: str, user_id: str):
+        """后台自动修炼循环"""
+        world = self._get_world(group_id)
+        player = world.players.get(user_id)
+
+        try:
+            while True:
+                player = self._get_world(group_id).players.get(user_id)
+                if not player or not player.is_auto_training:
+                    break
+
+                success, msg = player.train(continuous=True)
+
+                if not success:
+                    await self.context.send_private_message(user_id, f"自动修炼已停止：{msg}")
+                    break
+
+                if "突破" in msg or "晋升" in msg:
+                    await self.context.send_private_message(user_id, f"自动修炼通知：{msg}")
+
+                await asyncio.sleep(player.cooldowns["train"])
+        finally:
+            if player:
+                player.is_auto_training = False
+            if user_id in self.auto_train_tasks:
+                del self.auto_train_tasks[user_id]
+            self._save_world(group_id)
+
+    @filter.command("自动修炼")
+    async def auto_train(self, event: AstrMessageEvent):
+        """开启或关闭自动修炼"""
+        group_id = event.get_group_id()
+        user_id = event.get_sender_id()
+        world = self._get_world(group_id)
+
+        if user_id not in world.players:
+            yield event.plain_result("你还没有加入游戏，请输入 /dp_join 加入游戏！")
+            return
+
+        player = world.players[user_id]
+
+        if user_id in self.auto_train_tasks:
+            # 停止自动修炼
+            self.auto_train_tasks[user_id].cancel()
+            player.is_auto_training = False
+            del self.auto_train_tasks[user_id]
+            self._save_world(group_id)
+            yield event.plain_result("自动修炼已停止。")
+        else:
+            # 开启自动修炼
+            status_ok, msg = player.check_status()
+            if not status_ok:
+                yield event.plain_result(f"无法开启自动修炼：{msg}")
+                return
+
+            player.is_auto_training = True
+            task = asyncio.create_task(self._auto_train_loop(event, group_id, user_id))
+            self.auto_train_tasks[user_id] = task
+            self._save_world(group_id)
+            yield event.plain_result("自动修炼已开启！系统将在后台为您持续修炼。当遇到濒死、需要突破等情况时将自动停止。")
 
 
 
