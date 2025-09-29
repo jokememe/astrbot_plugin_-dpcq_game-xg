@@ -3553,28 +3553,57 @@ class DouPoCangQiongFinal(Star):
         if user_id not in world.players:
             yield event.plain_result("你还没有加入游戏，请输入 /dp_join 加入游戏！")
             return
+
         args = event.message_str.strip().split()
         player = world.players[user_id]
-        item_name = " ".join(args[1:])
-        if item_name in player.inventory:
-            if item_name in CULTIVATION_BOOST.keys():
-                price = CULTIVATION_BOOST[item_name]['price'] * random.uniform(0.8, 1.1)
+
+        if len(args) < 2:
+            yield event.plain_result("请指定要出售的物品。格式：/出售 物品名称 [数量]")
+            return
+
+        # 解析数量和物品名称
+        quantity = 1
+        item_name_parts = args[1:]
+        if args[-1].isdigit():
+            quantity = int(args[-1])
+            item_name_parts = args[1:-1]
+
+        item_name = " ".join(item_name_parts)
+
+        if not item_name:
+            yield event.plain_result("无效的物品名称。")
+            return
+
+        # 检查物品数量
+        current_quantity = player.inventory.count(item_name)
+        if current_quantity < quantity:
+            yield event.plain_result(f"物品【{item_name}】数量不足，你只有 {current_quantity} 个。")
+            return
+
+        # 计算总售价并出售
+        total_price = 0
+        for _ in range(quantity):
+            # 计算单个物品价格
+            price = 0
+            if item_name in CULTIVATION_BOOST:
+                price = CULTIVATION_BOOST[item_name].get('value', 0) * random.uniform(0.8, 1.1)
             else:
                 pill = PillSystem.get_pill_by_name(item_name)
                 if pill:
-                    price = pill.get('price', 401) * random.uniform(0.8, 1.2)
+                    price = pill.get('value', 0) * random.uniform(0.8, 1.2)
                 else:
-                    price = random.randint(150, 1000)
-
-            player.gold += price
+                    # 为其他杂项物品设置一个默认价值
+                    price = random.randint(50, 200)
+            
+            total_price += price
             player.inventory.remove(item_name)
 
-            yield event.plain_result(
-                f"成功出售 【{item_name}】！\n"
-                f"获得：{price}金币"
-            )
-        else:
-            yield event.plain_result("你没有这个物品！")
+        player.add_gold(total_price)
+
+        yield event.plain_result(
+            f"成功出售【{item_name}】×{quantity}！\n"
+            f"获得金币：{int(total_price)}"
+        )
         return
 
 
@@ -3590,48 +3619,52 @@ class DouPoCangQiongFinal(Star):
         player = world.players[user_id]
         args = event.message_str.strip().split()
 
-        # 检查命令格式是否正确
         if len(args) < 2:
-            yield event.plain_result("命令格式错误！正确格式：出售_s 物品名称 [数量=1]")
+            yield event.plain_result("请指定要出售的物品。格式：/出售_s 物品名称 [数量]")
             return
-        # 解析物品名称和数量
-        item_name_parts = []
+
+        # 解析数量和物品名称
         quantity = 1
-        for part in args[1:]:
-            if part.isdigit():
-                quantity = int(part)
-            else:
-                item_name_parts.append(part)
+        item_name_parts = args[1:]
+        if args[-1].isdigit():
+            quantity = int(args[-1])
+            item_name_parts = args[1:-1]
 
         item_name = " ".join(item_name_parts)
-        # 检查物品是否存在
-        if item_name not in player.inventory:
-            yield event.plain_result("你没有这个物品！")
+
+        if not item_name:
+            yield event.plain_result("无效的物品名称。")
             return
-        # 检查物品数量是否足够
-        inventory_count = player.inventory.count(item_name)
-        if inventory_count < quantity:
-            yield event.plain_result(f"你的【{item_name}】数量不足！你只有 {inventory_count} 个。")
+
+        # 检查物品数量
+        current_quantity = player.inventory.count(item_name)
+        if current_quantity < quantity:
+            yield event.plain_result(f"物品【{item_name}】数量不足，你只有 {current_quantity} 个。")
             return
-        # 计算总价格
+
+        # 计算总售价并出售
         total_price = 0
         for _ in range(quantity):
-            if item_name in CULTIVATION_BOOST.keys():
-                price = CULTIVATION_BOOST[item_name]['price'] * random.uniform(0.8, 1.1)
+            # 计算单个物品价格
+            price = 0
+            if item_name in CULTIVATION_BOOST:
+                price = CULTIVATION_BOOST[item_name].get('value', 0) * random.uniform(0.8, 1.1)
             else:
                 pill = PillSystem.get_pill_by_name(item_name)
                 if pill:
-                    price = pill.get('price', 401) * random.uniform(0.8, 1.2)
+                    price = pill.get('value', 0) * random.uniform(0.8, 1.2)
                 else:
-                    price = random.randint(150, 1000)
+                    # 为其他杂项物品设置一个默认价值
+                    price = random.randint(50, 200)
+            
             total_price += price
-        # 更新玩家数据
-        player.gold += total_price
-        for _ in range(quantity):
             player.inventory.remove(item_name)
+
+        player.add_gold(total_price)
+
         yield event.plain_result(
-            f"成功出售 【{item_name}】×{quantity}！\n"
-            f"获得：{total_price:.2f}金币"
+            f"成功出售【{item_name}】×{quantity}！\n"
+            f"获得金币：{int(total_price)}"
         )
     # async def private_sell(self, event: AstrMessageEvent):
     #     user_id = event.get_sender_id()
